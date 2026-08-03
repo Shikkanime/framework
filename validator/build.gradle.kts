@@ -5,4 +5,5 @@ plugins {
 dependencies {
     implementation(libs.kotlinReflect)
     testImplementation(kotlin("test"))
+    testImplementation(libs.bundles.testEcosystem)
 }

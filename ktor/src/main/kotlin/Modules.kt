@@ -12,7 +12,14 @@ import io.ktor.server.routing.*
 import io.ktor.server.routing.openapi.*
 import kotlinx.serialization.ExperimentalSerializationApi
 
-fun Application.configureDefaultModules(title: String, version: String) {
+/**
+ * Configures default Ktor server features including ContentNegotiation (JSON and Protobuf),
+ * CORS policy allowing standard HTTP methods, and Swagger UI documentation endpoints.
+ *
+ * @param title Title displayed in the generated OpenAPI documentation.
+ * @param version API version displayed in the generated OpenAPI documentation.
+ */
+fun Application.configureDefaultModules(title: String, version: String): Unit {
     configureContentNegotiation()
     configureCORS()
 

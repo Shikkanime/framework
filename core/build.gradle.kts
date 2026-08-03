@@ -4,4 +4,5 @@ plugins {
 
 dependencies {
     testImplementation(kotlin("test"))
+    testImplementation(libs.bundles.testEcosystem)
 }
