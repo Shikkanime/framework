@@ -8,4 +8,5 @@ dependencies {
     api(project(":validator"))
     api(libs.bundles.ktorServerEcosystem)
     testImplementation(kotlin("test"))
+    testImplementation(libs.bundles.testEcosystem)
 }

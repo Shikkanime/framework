@@ -5,7 +5,7 @@ package buildsrc.convention
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 group = "fr.shikkanime.framework"
-version = "0.0.1-SNAPSHOT"
+version = providers.gradleProperty("version").orNull ?: "0.0.2-SNAPSHOT"
 
 plugins {
     // Apply the Kotlin JVM plugin to add support for Kotlin in JVM projects.
