@@ -8,18 +8,54 @@ import java.lang.reflect.Proxy
  * Creates a JDK dynamic proxy that wraps methods annotated with [Transactional] in a transaction.
  *
  * The proxied type must be an interface implemented by [target]. The annotation may be declared on
- * either the interface method or its implementation.
+ * either the interface method or its implementation. By default, the proxy resolves the
+ * [DatabaseWrapper] associated with the current Exposed database. A wrapper can still be provided
+ * explicitly.
  *
  * @param T interface exposed by the generated proxy.
- * @param databaseWrapper database wrapper used to execute transactional calls.
  * @param target object receiving proxied method invocations.
  * @param interfaceType interface implemented by [target].
  */
-class TransactionalProxy<T : Any>(
-    private val databaseWrapper: DatabaseWrapper,
+class TransactionalProxy<T : Any> private constructor(
     private val target: T,
-    private val interfaceType: Class<T>
+    private val interfaceType: Class<T>,
+    private val databaseWrapper: DatabaseWrapper
 ) : InvocationHandler {
+    /**
+     * Creates a proxy using an explicit database wrapper.
+     *
+     * @param databaseWrapper database wrapper used to execute transactional calls.
+     * @param target object receiving proxied method invocations.
+     * @param interfaceType interface implemented by [target].
+     */
+    constructor(
+        databaseWrapper: DatabaseWrapper,
+        target: T,
+        interfaceType: Class<T>
+    ) : this(
+        target,
+        interfaceType,
+        databaseWrapper
+    )
+
+    /**
+     * Creates a proxy using the wrapper associated with the current Exposed database.
+     *
+     * [DatabaseWrapper.connect] must be called before creating the proxy.
+     *
+     * @param target object receiving proxied method invocations.
+     * @param interfaceType interface implemented by [target].
+     * @throws IllegalStateException when the current database is not managed by [DatabaseWrapper].
+     */
+    constructor(
+        target: T,
+        interfaceType: Class<T>
+    ) : this(
+        target,
+        interfaceType,
+        DatabaseWrapper.current()
+    )
+
     /**
      * Creates a proxy implementing the configured interface.
      *

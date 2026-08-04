@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils.withDataBaseLock
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 /**
@@ -84,8 +85,12 @@ class DatabaseWrapper(
      *
      * @return the connected Exposed [Database].
      */
-    fun connect() =
-        Database.connect(datasource = HikariDataSource(hikariConfig))
+    fun connect(): Database =
+        Database.connect(datasource = HikariDataSource(hikariConfig)).also { database ->
+            synchronized(wrappersByDatabase) {
+                wrappersByDatabase[database] = this
+            }
+        }
 
     /**
      * Creates all registered Exposed tables that do not already exist.
@@ -123,4 +128,23 @@ class DatabaseWrapper(
      */
     fun dropSchema() =
         inTransaction { withDataBaseLock { SchemaUtils.drop(*tables.toTypedArray()) } }
+
+    companion object {
+        private val wrappersByDatabase = mutableMapOf<Database, DatabaseWrapper>()
+
+        /**
+         * Returns the wrapper associated with the current Exposed database.
+         *
+         * @throws IllegalStateException when no database is connected or when the current database
+         * was not connected through [DatabaseWrapper].
+         */
+        internal fun current(): DatabaseWrapper {
+            val database = TransactionManager.currentOrNull()?.db
+                ?: TransactionManager.primaryDatabase
+                ?: throw IllegalStateException("No current database found. Call DatabaseWrapper.connect() first.")
+
+            return synchronized(wrappersByDatabase) { wrappersByDatabase[database] }
+                ?: throw IllegalStateException("The current database is not managed by DatabaseWrapper. Connect it through DatabaseWrapper.connect() or provide a wrapper explicitly.")
+        }
+    }
 }

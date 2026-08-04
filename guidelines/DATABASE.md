@@ -16,7 +16,8 @@ db.migrateSchema("db/changelog.xml")
 
 Operations modifying state or executing Exposed queries must run within a transaction.
 - Standard transactions: `databaseWrapper.inTransaction { ... }`
-- Annotation-based transactions: Mark methods with `@Transactional` and wrap interface implementations using `TransactionalProxy(databaseWrapper, target, interfaceClass).create()`.
+- Annotation-based transactions: Mark methods with `@Transactional` and wrap interface implementations using `TransactionalProxy(target, interfaceClass).create()`. This resolves the `DatabaseWrapper` registered for the current database by `DatabaseWrapper.connect()` and fails if none is available.
+- Explicit database wrapper: Use `TransactionalProxy(databaseWrapper, target, interfaceClass).create()` when the proxy must target a specific wrapper.
 
 ## 3. AbstractRepository & Upsert DSL
 
