@@ -13,19 +13,14 @@ import io.ktor.server.routing.openapi.*
 import kotlinx.serialization.ExperimentalSerializationApi
 
 /**
- * Configures default Ktor server features including ContentNegotiation (JSON and Protobuf),
- * CORS policy allowing standard HTTP methods, and Swagger UI documentation endpoints.
+ * Configures the default content negotiation and CORS modules.
  *
- * @param title Title displayed in the generated OpenAPI documentation.
- * @param version API version displayed in the generated OpenAPI documentation.
+ * Content negotiation supports JSON and Protobuf, while CORS accepts requests from any host
+ * using Ktor's default HTTP methods.
  */
-fun Application.configureDefaultModules(title: String, version: String): Unit {
+fun Application.configureDefaultModules(): Unit {
     configureContentNegotiation()
     configureCORS()
-
-    routing {
-        configureSwaggerRoute(title, version)
-    }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -43,7 +38,13 @@ internal fun Application.configureCORS() {
     }
 }
 
-internal fun Route.configureSwaggerRoute(title: String, version: String) {
+/**
+ * Adds a Swagger UI endpoint at `/swagger` for the routes registered under this route.
+ *
+ * @param title title displayed in the generated OpenAPI documentation.
+ * @param version API version displayed in the generated OpenAPI documentation.
+ */
+fun Route.configureSwaggerRoute(title: String, version: String) {
     swaggerUI("/swagger") {
         info = OpenApiInfo(title, version)
         source = OpenApiDocSource.Routing(ContentType.Application.Json) {
