@@ -18,7 +18,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
  * Content negotiation supports JSON and Protobuf, while CORS accepts requests from any host
  * using Ktor's default HTTP methods.
  */
-fun Application.configureDefaultModules(): Unit {
+fun Application.configureDefaultModules() {
     configureContentNegotiation()
     configureCORS()
 }
