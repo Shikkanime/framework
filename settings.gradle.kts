@@ -15,5 +15,6 @@ include(
     ":core",
     ":exposed",
     ":validator",
-    ":ktor"
+    ":ktor",
+    ":cache"
 )

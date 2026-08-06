@@ -2,6 +2,7 @@ package fr.shikkanime.ktor
 
 import io.ktor.http.*
 import io.ktor.openapi.*
+import io.ktor.serialization.kotlinx.cbor.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.serialization.kotlinx.protobuf.*
 import io.ktor.server.application.*
@@ -28,6 +29,7 @@ internal fun Application.configureContentNegotiation() {
     install(ContentNegotiation) {
         json()
         protobuf()
+        cbor()
     }
 }
 
