@@ -1,11 +1,20 @@
 package fr.shikkanime.ktor
 
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
+import io.ktor.client.request.accept
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.patch
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -14,7 +23,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 class ControllerRegistrationTest {
 
     @Serializable
@@ -22,51 +30,84 @@ class ControllerRegistrationTest {
 
     @RestController("/api/books")
     class BookController : IController {
+        @GetMapping("/{id}")
+        fun getBook(@PathParam("id") id: Int): ResponseEntity<Book> =
+            ResponseEntity.ok(Book(id, "Dune"))
+
+        @GetMapping("/search")
+        fun search(@QueryParam("q") q: String): ResponseEntity<List<Book>> =
+            ResponseEntity.ok(listOf(Book(1, "Dune"), Book(2, "Foundation")))
+
+        @PostMapping
+        fun create(@RequestBody book: Book): ResponseEntity<Book> =
+            ResponseEntity.created(book)
+
+        @PatchMapping("/{id}")
+        fun update(@PathParam("id") id: Int, @RequestBody book: Book): ResponseEntity<Book> =
+            ResponseEntity.ok(book.copy(id = id))
+
         @GetMapping("/ok")
-        fun ok(): ResponseEntity<Book> = ResponseEntity.ok(Book(1, "Dune"))
+        fun ok(): ResponseEntity<Book> =
+            ResponseEntity.ok(Book(1, "Dune"))
 
         @GetMapping("/created")
-        fun created(): ResponseEntity<Book> = ResponseEntity.created(Book(2, "Foundation"))
+        fun created(): ResponseEntity<Book> =
+            ResponseEntity.created(Book(2, "Foundation"))
 
         @GetMapping("/bad")
-        fun bad(): ResponseEntity<String> = ResponseEntity.badRequest("Invalid input")
+        fun bad(): ResponseEntity<String> =
+            ResponseEntity.badRequest("Invalid input")
 
         @GetMapping("/notfound")
-        fun notFound(): ResponseEntity<String> = ResponseEntity.notFound("Missing book")
+        fun notFound(): ResponseEntity<String> =
+            ResponseEntity.notFound("Missing book")
 
         @GetMapping("/conflict")
-        fun conflict(): ResponseEntity<String> = ResponseEntity.conflict("Book already exists")
+        fun conflict(): ResponseEntity<String> =
+            ResponseEntity.conflict("Book already exists")
 
         @GetMapping("/error")
-        fun error(): ResponseEntity<String> = ResponseEntity.internalServerError("Unexpected")
+        fun error(): ResponseEntity<String> =
+            ResponseEntity.internalServerError("Unexpected")
 
         @GetMapping("/plain")
-        fun plain(): String = "Hello World"
+        fun plain(): String =
+            "Hello World"
 
         @GetMapping("/boom")
-        fun boom(): String = throw RuntimeException("boom")
+        fun boom(): String =
+            throw RuntimeException("boom")
 
         @GetMapping("/invalid")
-        fun invalid(): String = throw ObjectNotValidException("title must not be blank")
+        fun invalid(): String =
+            throw ObjectNotValidException("title must not be blank")
     }
 
     /** Not annotated with [RestController]: must not be registered. */
     class PlainController {
-        fun get(): ResponseEntity<String> = ResponseEntity.ok("nope")
+        fun get(): ResponseEntity<String> =
+            ResponseEntity.ok("nope")
     }
 
     /** [RestController] with a method that has no mapping annotation: must not be bound. */
     @RestController("/api/extra")
     class ExtraController : IController {
-        fun unannotated(): String = "hidden"
+        fun unannotated(): String =
+            "hidden"
     }
 
-    private fun io.ktor.server.testing.ApplicationTestBuilder.registerControllers(controllers: List<Any>) {
+    private fun ApplicationTestBuilder.registerControllers(controllers: List<Any>) {
         application {
             configureDefaultModules()
             routing { ControllerBinder.register(this, controllers) }
         }
     }
+
+    private suspend fun ApplicationTestBuilder.jsonOf(id: Int): HttpResponse =
+        client.get("/api/books/$id") { accept(ContentType.Application.Json) }
+
+    private fun HttpResponse.contentTypeValue(): String? =
+        headers[HttpHeaders.ContentType]?.substringBefore(";")
 
     @Nested
     @DisplayName("tests for controller registration")
@@ -117,7 +158,7 @@ class ControllerRegistrationTest {
 
             // Then
             assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals(io.ktor.http.ContentType.Application.Json, response.contentType())
+            assertEquals("application/json", response.contentTypeValue())
             assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
         }
 
@@ -207,6 +248,102 @@ class ControllerRegistrationTest {
             // Then
             assertEquals(HttpStatusCode.BadRequest, response.status)
             assertTrue(response.bodyAsText().contains("title must not be blank"))
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for parameter binding and HTTP methods")
+    inner class ParameterAndMethodTests {
+
+        @Test
+        fun `should bind a path parameter`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.get("/api/books/42")
+
+            // Then
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("""{"id":42,"title":"Dune"}""", response.bodyAsText())
+        }
+
+        @Test
+        fun `should bind query parameters`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.get("/api/books/search?q=Dune")
+
+            // Then
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(
+                """[{"id":1,"title":"Dune"},{"id":2,"title":"Foundation"}]""",
+                response.bodyAsText()
+            )
+        }
+
+        @Test
+        fun `should create resource with POST and a JSON body`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.post("/api/books") {
+                header(HttpHeaders.ContentType, "application/json")
+                setBody("""{"id":5,"title":"The Martian"}""")
+            }
+
+            // Then
+            assertEquals(HttpStatusCode.Created, response.status)
+            assertEquals("""{"id":5,"title":"The Martian"}""", response.bodyAsText())
+        }
+
+        @Test
+        fun `should update resource with PATCH and a JSON body`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.patch("/api/books/7") {
+                header(HttpHeaders.ContentType, "application/json")
+                setBody("""{"id":7,"title":"Neuromancer"}""")
+            }
+
+            // Then
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("""{"id":7,"title":"Neuromancer"}""", response.bodyAsText())
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for returned content types")
+    inner class ContentTypeTests {
+
+        @Test
+        fun `should return entity as JSON when accepted`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = jsonOf(1)
+
+            // Then
+            assertEquals("application/json", response.contentTypeValue())
+            assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
+        }
+
+        @Test
+        fun `should return entity as protobuf when accepted`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.get("/api/books/2") { accept(ContentType.Application.ProtoBuf) }
+
+            // Then
+            assertTrue(response.contentTypeValue()!!.startsWith("application/protobuf"))
+            assertTrue(response.bodyAsBytes().isNotEmpty())
+        }
+
+        @Test
+        fun `should return entity as cbor when accepted`() = testApplication {
+            // Given / When
+            registerControllers(listOf(BookController()))
+            val response = client.get("/api/books/3") { accept(ContentType.parse("application/cbor")) }
+
+            // Then
+            assertTrue(response.contentTypeValue()!!.startsWith("application/cbor"))
+            assertTrue(response.bodyAsBytes().isNotEmpty())
         }
     }
 }
