@@ -12,6 +12,7 @@
 ## Imports
 
 - **Always import symbols directly** (`import kotlinx.serialization.ExperimentalSerializationApi`); never reference a type by its fully-qualified name inline (e.g. `kotlinx.serialization.ExperimentalSerializationApi::class`). This keeps the code short and readable.
+- **Wildcard imports (`.*`) are allowed**, consistent with the existing codebase (e.g. `io.ktor.http.*`, `org.junit.jupiter.api.Assertions.*`).
 
 ## Expression Bodies
 
