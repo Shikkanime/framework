@@ -13,7 +13,7 @@ The project is structured into distinct, decoupled framework modules. **Do not v
 - **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`AbstractRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
-- **`ktor`**: Ktor web integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, and OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`).
+- **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), and a preconfigured HTTP client (`createHttpClient`).
 
 For detailed architectural principles, read the [Architecture Guide](guidelines/ARCHITECTURE.md).
 
