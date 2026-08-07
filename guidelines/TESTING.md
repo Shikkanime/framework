@@ -93,3 +93,12 @@ class MyComponentTest {
     // ... tests
 }
 ```
+
+## 6. Test Every Public Framework API
+
+The framework is **consumed by other projects**: every public API it ships (server controllers, the preconfigured `HttpClient`, argument resolvers, response wrappers, etc.) must be covered by tests. This makes dependency upgrades explicit: a **Ktor** (or other framework dependency) bump that changes behavior — or a version that drifts — immediately breaks a framework test, instead of silently shipping a broken version to consuming projects.
+
+- **Server side**: use Ktor's test host (`io.ktor:ktor-server-test-host`) to start routes/controllers in-process and exercise them without a real network server.
+- **Client side**: use `io.ktor:ktor-client-mock` (MockEngine) to test the `HttpClient` deterministically (request building, content negotiation/serialization, timeouts) with no network, asserting on request/response fixtures.
+- **A public API change without a corresponding test is an incomplete change.**
+- Run the full suite with `./gradlew test` before submitting.

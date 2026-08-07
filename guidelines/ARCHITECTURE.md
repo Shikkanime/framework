@@ -16,7 +16,11 @@ core (base logging & core utils)
 - **`cache`**: Provides a two-level caching facade (`Cache`), combining an in-memory L1 LRU cache (`L1Cache`) with a distributed L2 Valkey/Redis store (`ValkeyWrapper`), CBOR binary encoding (`BinaryCodec`), bucket versioning, and concurrent loader deduplication (`SingleFlight`).
 - **`exposed`**: Coordinates database connections via `DatabaseWrapper` (HikariCP + Exposed + Liquibase), provides `TransactionalProxy` dynamic proxies for `@Transactional` methods, and supplies `AbstractRepository` with an upsert DSL (`ifExists`, `newIfNotExists`, `applyFlush`).
 - **`validator`**: Provides a runtime reflection-based validation engine (`Validator`) and validation annotations (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`).
-- **`ktor`**: Bridges Ktor web server with framework annotations. Discovers `@RestController` endpoints, binds routes (`@GetMapping`, `@PostMapping`, `@PatchMapping`), resolves parameter arguments (`@QueryParam`, `@PathParam`, `@RequestBody`), executes automatic validation via `@Valid`, packages responses with `ResponseEntity`, generates OpenAPI metadata (`@Operation`, `@ApiResponses`), and handles error formatting via `MessageDto`.
+- **`ktor`**: Bridges Ktor (server **and client**) with framework conventions. Discovers `@RestController` endpoints, binds routes (`@GetMapping`, `@PostMapping`, `@PatchMapping`), resolves parameter arguments (`@QueryParam`, `@PathParam`, `@RequestBody`), executes automatic validation via `@Valid`, packages responses with `ResponseEntity`, generates OpenAPI metadata (`@Operation`, `@ApiResponses`), handles error formatting via `MessageDto`, and exposes a preconfigured HTTP client (`createHttpClient`).
+
+## Dependency Sharing
+
+The framework extends itself to consuming services: **module dependencies are exposed with `api(...)`** so that projects building on the framework can use them to their full potential (e.g. `api(libs.bundles.ktorServerEcosystem)`, `api(libs.bundles.ktorClientEcosystem)`). Use `implementation` only for dependencies that are genuinely internal to a module.
 
 ## Technical Stack
 
