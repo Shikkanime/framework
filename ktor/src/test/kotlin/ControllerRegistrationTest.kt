@@ -38,6 +38,10 @@ class ControllerRegistrationTest {
         fun search(@QueryParam("q") q: String): ResponseEntity<List<Book>> =
             ResponseEntity.ok(listOf(Book(1, "Dune"), Book(2, "Foundation")))
 
+        @GetMapping("/book")
+        fun book(): Book =
+            Book(1, "Dune")
+
         @PostMapping
         fun create(@RequestBody book: Book): ResponseEntity<Book> =
             ResponseEntity.created(book)
@@ -103,9 +107,6 @@ class ControllerRegistrationTest {
         }
     }
 
-    private suspend fun ApplicationTestBuilder.jsonOf(id: Int): HttpResponse =
-        client.get("/api/books/$id") { accept(ContentType.Application.Json) }
-
     private fun HttpResponse.contentTypeValue(): String? =
         headers[HttpHeaders.ContentType]?.substringBefore(";")
 
@@ -114,36 +115,39 @@ class ControllerRegistrationTest {
     inner class RegistrationTests {
 
         @Test
-        fun `should register every mapped endpoint of an annotated controller`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
+        fun `should register every mapped endpoint of an annotated controller`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
 
-            // Then
-            assertEquals(HttpStatusCode.OK, client.get("/api/books/ok").status)
-            assertEquals(HttpStatusCode.Created, client.get("/api/books/created").status)
-            assertEquals(HttpStatusCode.BadRequest, client.get("/api/books/bad").status)
-            assertEquals(HttpStatusCode.NotFound, client.get("/api/books/notfound").status)
-            assertEquals(HttpStatusCode.Conflict, client.get("/api/books/conflict").status)
-            assertEquals(HttpStatusCode.InternalServerError, client.get("/api/books/error").status)
-        }
-
-        @Test
-        fun `should not register a class without rest controller annotation`() = testApplication {
-            // Given / When
-            registerControllers(listOf(PlainController()))
-
-            // Then
-            assertEquals(HttpStatusCode.NotFound, client.get("/plain").status)
-        }
+                // Then
+                assertEquals(HttpStatusCode.OK, client.get("/api/books/ok").status)
+                assertEquals(HttpStatusCode.Created, client.get("/api/books/created").status)
+                assertEquals(HttpStatusCode.BadRequest, client.get("/api/books/bad").status)
+                assertEquals(HttpStatusCode.NotFound, client.get("/api/books/notfound").status)
+                assertEquals(HttpStatusCode.Conflict, client.get("/api/books/conflict").status)
+                assertEquals(HttpStatusCode.InternalServerError, client.get("/api/books/error").status)
+            }
 
         @Test
-        fun `should not bind a method without a mapping annotation`() = testApplication {
-            // Given / When
-            registerControllers(listOf(ExtraController()))
+        fun `should not register a class without rest controller annotation`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(PlainController()))
 
-            // Then
-            assertEquals(HttpStatusCode.NotFound, client.get("/api/extra/unannotated").status)
-        }
+                // Then
+                assertEquals(HttpStatusCode.NotFound, client.get("/plain").status)
+            }
+
+        @Test
+        fun `should not bind a method without a mapping annotation`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(ExtraController()))
+
+                // Then
+                assertEquals(HttpStatusCode.NotFound, client.get("/api/extra/unannotated").status)
+            }
     }
 
     @Nested
@@ -151,104 +155,126 @@ class ControllerRegistrationTest {
     inner class ResponseTests {
 
         @Test
-        fun `should serialize ok response with HTTP 200 and a JSON body`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/ok")
+        fun `should serialize ok response with HTTP 200 and a JSON body`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/ok")
 
-            // Then
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals("application/json", response.contentTypeValue())
-            assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
-        }
-
-        @Test
-        fun `should return created response with HTTP 201`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/created")
-
-            // Then
-            assertEquals(HttpStatusCode.Created, response.status)
-            assertEquals("""{"id":2,"title":"Foundation"}""", response.bodyAsText())
-        }
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("application/json", response.contentTypeValue())
+                assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
+            }
 
         @Test
-        fun `should return badRequest response with HTTP 400`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/bad")
+        fun `should serialize a directly returned entity with HTTP 200 and a JSON body`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/book")
 
-            // Then
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            assertEquals("Invalid input", response.bodyAsText())
-        }
-
-        @Test
-        fun `should return notFound response with HTTP 404`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/notfound")
-
-            // Then
-            assertEquals(HttpStatusCode.NotFound, response.status)
-            assertEquals("Missing book", response.bodyAsText())
-        }
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("application/json", response.contentTypeValue())
+                assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
+            }
 
         @Test
-        fun `should return conflict response with HTTP 409`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/conflict")
+        fun `should return created response with HTTP 201`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/created")
 
-            // Then
-            assertEquals(HttpStatusCode.Conflict, response.status)
-            assertEquals("Book already exists", response.bodyAsText())
-        }
-
-        @Test
-        fun `should return internalServerError response with HTTP 500`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/error")
-
-            // Then
-            assertEquals(HttpStatusCode.InternalServerError, response.status)
-            assertEquals("Unexpected", response.bodyAsText())
-        }
+                // Then
+                assertEquals(HttpStatusCode.Created, response.status)
+                assertEquals("""{"id":2,"title":"Foundation"}""", response.bodyAsText())
+            }
 
         @Test
-        fun `should respond plain value with HTTP 200`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/plain")
+        fun `should return badRequest response with HTTP 400`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/bad")
 
-            // Then
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals("Hello World", response.bodyAsText())
-        }
-
-        @Test
-        fun `should return error message on unexpected exception with HTTP 500`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/boom")
-
-            // Then
-            assertEquals(HttpStatusCode.InternalServerError, response.status)
-            assertTrue(response.bodyAsText().contains("An unexpected error occurred"))
-        }
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertEquals("Invalid input", response.bodyAsText())
+            }
 
         @Test
-        fun `should return error message on validation failure with HTTP 400`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/invalid")
+        fun `should return notFound response with HTTP 404`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/notfound")
 
-            // Then
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            assertTrue(response.bodyAsText().contains("title must not be blank"))
-        }
+                // Then
+                assertEquals(HttpStatusCode.NotFound, response.status)
+                assertEquals("Missing book", response.bodyAsText())
+            }
+
+        @Test
+        fun `should return conflict response with HTTP 409`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/conflict")
+
+                // Then
+                assertEquals(HttpStatusCode.Conflict, response.status)
+                assertEquals("Book already exists", response.bodyAsText())
+            }
+
+        @Test
+        fun `should return internalServerError response with HTTP 500`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/error")
+
+                // Then
+                assertEquals(HttpStatusCode.InternalServerError, response.status)
+                assertEquals("Unexpected", response.bodyAsText())
+            }
+
+        @Test
+        fun `should respond plain value with HTTP 200`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/plain")
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("Hello World", response.bodyAsText())
+            }
+
+        @Test
+        fun `should return error message on unexpected exception with HTTP 500`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/boom")
+
+                // Then
+                assertEquals(HttpStatusCode.InternalServerError, response.status)
+                assertTrue(response.bodyAsText().contains("An unexpected error occurred"))
+            }
+
+        @Test
+        fun `should return error message on validation failure with HTTP 400`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/invalid")
+
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertTrue(response.bodyAsText().contains("title must not be blank"))
+            }
     }
 
     @Nested
@@ -256,57 +282,61 @@ class ControllerRegistrationTest {
     inner class ParameterAndMethodTests {
 
         @Test
-        fun `should bind a path parameter`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/42")
+        fun `should bind a path parameter`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/42")
 
-            // Then
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals("""{"id":42,"title":"Dune"}""", response.bodyAsText())
-        }
-
-        @Test
-        fun `should bind query parameters`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/search?q=Dune")
-
-            // Then
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals(
-                """[{"id":1,"title":"Dune"},{"id":2,"title":"Foundation"}]""",
-                response.bodyAsText()
-            )
-        }
-
-        @Test
-        fun `should create resource with POST and a JSON body`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.post("/api/books") {
-                header(HttpHeaders.ContentType, "application/json")
-                setBody("""{"id":5,"title":"The Martian"}""")
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("""{"id":42,"title":"Dune"}""", response.bodyAsText())
             }
 
-            // Then
-            assertEquals(HttpStatusCode.Created, response.status)
-            assertEquals("""{"id":5,"title":"The Martian"}""", response.bodyAsText())
-        }
-
         @Test
-        fun `should update resource with PATCH and a JSON body`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.patch("/api/books/7") {
-                header(HttpHeaders.ContentType, "application/json")
-                setBody("""{"id":7,"title":"Neuromancer"}""")
+        fun `should bind query parameters`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/search?q=Dune")
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(
+                    """[{"id":1,"title":"Dune"},{"id":2,"title":"Foundation"}]""",
+                    response.bodyAsText()
+                )
             }
 
-            // Then
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertEquals("""{"id":7,"title":"Neuromancer"}""", response.bodyAsText())
-        }
+        @Test
+        fun `should create resource with POST and a JSON body`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.post("/api/books") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"id":5,"title":"The Martian"}""")
+                }
+
+                // Then
+                assertEquals(HttpStatusCode.Created, response.status)
+                assertEquals("""{"id":5,"title":"The Martian"}""", response.bodyAsText())
+            }
+
+        @Test
+        fun `should update resource with PATCH and a JSON body`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.patch("/api/books/7") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"id":7,"title":"Neuromancer"}""")
+                }
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("""{"id":7,"title":"Neuromancer"}""", response.bodyAsText())
+            }
     }
 
     @Nested
@@ -314,36 +344,39 @@ class ControllerRegistrationTest {
     inner class ContentTypeTests {
 
         @Test
-        fun `should return entity as JSON when accepted`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = jsonOf(1)
+        fun `should return entity as JSON when accepted`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/book") { accept(ContentType.Application.Json) }
 
-            // Then
-            assertEquals("application/json", response.contentTypeValue())
-            assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
-        }
-
-        @Test
-        fun `should return entity as protobuf when accepted`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/2") { accept(ContentType.Application.ProtoBuf) }
-
-            // Then
-            assertTrue(response.contentTypeValue()!!.startsWith("application/protobuf"))
-            assertTrue(response.bodyAsBytes().isNotEmpty())
-        }
+                // Then
+                assertEquals("application/json", response.contentTypeValue())
+                assertEquals("""{"id":1,"title":"Dune"}""", response.bodyAsText())
+            }
 
         @Test
-        fun `should return entity as cbor when accepted`() = testApplication {
-            // Given / When
-            registerControllers(listOf(BookController()))
-            val response = client.get("/api/books/3") { accept(ContentType.parse("application/cbor")) }
+        fun `should return entity as protobuf when accepted`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/2") { accept(ContentType.Application.ProtoBuf) }
 
-            // Then
-            assertTrue(response.contentTypeValue()!!.startsWith("application/cbor"))
-            assertTrue(response.bodyAsBytes().isNotEmpty())
-        }
+                // Then
+                assertTrue(response.contentTypeValue()!!.startsWith("application/protobuf"))
+                assertTrue(response.bodyAsBytes().isNotEmpty())
+            }
+
+        @Test
+        fun `should return entity as cbor when accepted`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.get("/api/books/3") { accept(ContentType.parse("application/cbor")) }
+
+                // Then
+                assertTrue(response.contentTypeValue()!!.startsWith("application/cbor"))
+                assertTrue(response.bodyAsBytes().isNotEmpty())
+            }
     }
 }
