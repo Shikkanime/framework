@@ -32,6 +32,9 @@ ktorServerSwagger = { module = "io.ktor:ktor-server-swagger", version.ref = "kto
 swaggerCodeGenerators = { module = "io.swagger.codegen.v3:swagger-codegen-generators", version.ref = "swaggerCodeGenerators" }
 ktorServerCors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
 ktorServerTestHost = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+ktorClientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktorClientOkHttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktorClientContentNegociation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 kotlinxSerializationCore = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinxSerializationProtobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinxSerialization" }
@@ -47,6 +50,7 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 [bundles]
 exposedEcosystem = ["exposedCore", "exposedDao", "exposedJdbc", "exposedKotlinDateTime", "hikariCP", "liquibaseCore"]
 ktorServerEcosystem = ["ktorServerCore", "ktorServerCio", "ktorServerContentNegociation", "ktorSerializationJson", "ktorSerializationProtobuf", "ktorSerializationCbor", "ktorServerSwagger", "swaggerCodeGenerators", "ktorServerCors"]
+ktorClientEcosystem = ["ktorClientCore", "ktorClientOkHttp", "ktorClientContentNegociation", "ktorSerializationJson", "ktorSerializationProtobuf", "ktorSerializationCbor"]
 serializationEcosystem = ["kotlinxSerializationCore", "kotlinxSerializationJson", "kotlinxSerializationProtobuf", "kotlinxSerializationCbor"]
 testEcosystem = ["junitJupiterApi", "junitJupiterEngine", "junitJupiterParams", "mockk"]
 
