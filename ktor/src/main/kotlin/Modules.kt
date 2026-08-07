@@ -16,23 +16,29 @@ import kotlinx.serialization.ExperimentalSerializationApi
 /**
  * Configures the default content negotiation and CORS modules.
  *
- * Content negotiation supports JSON and Protobuf, while CORS accepts requests from any host
- * using Ktor's default HTTP methods.
+ * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework configurations,
+ * while CORS accepts requests from any host using Ktor's default HTTP methods.
  */
 fun Application.configureDefaultModules() {
     configureContentNegotiation()
     configureCORS()
 }
 
+/**
+ * Configures Content Negotiation on the server using [defaultJson], [defaultProtoBuf], and [defaultCbor].
+ */
 @OptIn(ExperimentalSerializationApi::class)
 internal fun Application.configureContentNegotiation() {
     install(ContentNegotiation) {
-        json()
-        protobuf()
-        cbor()
+        json(defaultJson)
+        protobuf(defaultProtoBuf)
+        cbor(defaultCbor)
     }
 }
 
+/**
+ * Configures CORS on the server to accept requests from any host using default HTTP methods.
+ */
 internal fun Application.configureCORS() {
     install(CORS) {
         anyHost()

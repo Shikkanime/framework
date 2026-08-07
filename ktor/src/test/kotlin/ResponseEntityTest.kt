@@ -1,6 +1,6 @@
 package fr.shikkanime.ktor
 
-import io.ktor.http.*
+import io.ktor.http.HttpStatusCode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

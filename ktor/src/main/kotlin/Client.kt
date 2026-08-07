@@ -8,10 +8,15 @@ import io.ktor.serialization.kotlinx.cbor.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.serialization.kotlinx.protobuf.*
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.protobuf.ProtoBuf
 
+/**
+ * Creates a preconfigured [HttpClient] using the OkHttp engine.
+ *
+ * Configures HTTP timeouts (30s request, 10s connect, 30s socket) and registers content negotiation
+ * for JSON, Protobuf, and CBOR using [defaultJson], [defaultProtoBuf], and [defaultCbor].
+ *
+ * @return a new preconfigured [HttpClient] instance.
+ */
 @OptIn(ExperimentalSerializationApi::class)
 fun createHttpClient(): HttpClient =
     HttpClient(OkHttp) {
@@ -22,18 +27,8 @@ fun createHttpClient(): HttpClient =
         }
 
         install(ContentNegotiation) {
-            json(Json {
-                encodeDefaults = true
-                ignoreUnknownKeys = true
-                isLenient = true
-                explicitNulls = false
-            })
-            protobuf(ProtoBuf {
-                encodeDefaults = true
-            })
-            cbor(Cbor {
-                encodeDefaults = true
-                ignoreUnknownKeys = true
-            })
+            json(defaultJson)
+            protobuf(defaultProtoBuf)
+            cbor(defaultCbor)
         }
     }
