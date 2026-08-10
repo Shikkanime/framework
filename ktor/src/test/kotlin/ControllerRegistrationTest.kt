@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.validator.NotBlank
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
@@ -27,6 +28,12 @@ class ControllerRegistrationTest {
 
     @Serializable
     data class Book(val id: Int, val title: String)
+
+    @Serializable
+    data class ValidatedBook(
+        @NotBlank
+        val title: String
+    )
 
     @RestController("/api/books")
     class BookController : IController {
@@ -85,7 +92,12 @@ class ControllerRegistrationTest {
         @GetMapping("/invalid")
         fun invalid(): String =
             throw ObjectNotValidException("title must not be blank")
+
+        @PostMapping("/validated")
+        fun createValidated(@RequestBody @Valid book: ValidatedBook): ResponseEntity<ValidatedBook> =
+            ResponseEntity.ok(book)
     }
+
 
     /** Not annotated with [RestController]: must not be registered. */
     class PlainController {
@@ -274,6 +286,21 @@ class ControllerRegistrationTest {
                 // Then
                 assertEquals(HttpStatusCode.BadRequest, response.status)
                 assertTrue(response.bodyAsText().contains("title must not be blank"))
+            }
+
+        @Test
+        fun `should validate parameter with @Valid and return HTTP 400 when validation fails`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(BookController()))
+                val response = client.post("/api/books/validated") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"title": "   "}""")
+                }
+
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertTrue(response.bodyAsText().contains("This field cannot be blank"))
             }
     }
 

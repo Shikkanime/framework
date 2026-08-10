@@ -1,7 +1,7 @@
 package fr.shikkanime.ktor
 
 import io.ktor.http.*
-import io.ktor.openapi.Operation
+import io.ktor.openapi.Operation as OpenApiOperation
 import kotlin.reflect.KFunction
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.*
@@ -9,14 +9,14 @@ import kotlin.reflect.full.*
 /**
  * Adds annotation-based OpenAPI metadata for a controller function to this operation.
  *
- * Metadata is emitted only when [kFunction] has [fr.shikkanime.ktor.Operation]. Parameter schemas
+ * Metadata is emitted only when [kFunction] has [Operation]. Parameter schemas
  * come from [QueryParam] and [PathParam], the body schema comes from [RequestBody], and response
  * schemas come from [ApiResponse] or [ApiResponses].
  *
  * @param kFunction controller function whose annotations describe the operation.
  */
-internal fun Operation.Builder.describeOperation(kFunction: KFunction<*>) {
-    val operation = kFunction.findAnnotation<fr.shikkanime.ktor.Operation>() ?: return
+internal fun OpenApiOperation.Builder.describeOperation(kFunction: KFunction<*>) {
+    val operation = kFunction.findAnnotation<Operation>() ?: return
     summary = operation.summary
     description = operation.description
 
