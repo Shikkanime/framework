@@ -16,5 +16,6 @@ include(
     ":exposed",
     ":validator",
     ":ktor",
-    ":cache"
+    ":cache",
+    ":koin"
 )

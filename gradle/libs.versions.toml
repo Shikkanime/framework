@@ -11,6 +11,8 @@ kotlinxSerialization = "1.11.0"
 kotlinxCoroutines = "1.11.0"
 junitJupiter = "6.1.2"
 mockk = "1.14.11"
+koin = "4.2.2"
+koinCompiler = "1.0.2"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -38,6 +40,10 @@ kotlinxSerializationProtobuf = { module = "org.jetbrains.kotlinx:kotlinx-seriali
 kotlinxSerializationCbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "kotlinxSerialization" }
 valkeyGlide = { module = "io.valkey:valkey-glide", version.ref = "valkeyGlide" }
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+koinBom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
+koinCore = { module = "io.insert-koin:koin-core" }
+koinAnnotations = { module = "io.insert-koin:koin-annotations" }
+koinGradlePlugin = { module = "io.insert-koin:koin-gradle-plugin", version.ref = "koinCompiler" }
 junitJupiterApi = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiter" }
 junitJupiterEngine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junitJupiter" }
 junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junitJupiter" }
