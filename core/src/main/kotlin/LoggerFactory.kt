@@ -4,6 +4,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.*
 
 /**
@@ -55,11 +56,18 @@ class LoggerFactory {
     }
 
     companion object {
-        private val map = mutableMapOf<String, Logger>()
+        private val map = ConcurrentHashMap<String, Logger>()
+
+        // Shared writer and a single shared handler, so every logger appends into the same
+        // coherent daily files and the file sink has one lifecycle + one failure state.
+        private val fileWriter = LogFileWriter()
+        private val fileHandler = FileLogHandler(fileWriter)
+
         var level: Level = Level.ALL
 
         /**
-         * Builds and configures a new logger instance with a custom log formatter and console handler.
+         * Builds and configures a new logger instance with a custom log formatter, a console handler
+         * and an always-on file handler.
          *
          * @param name The name of the logger to create.
          * @return The configured logger instance.
@@ -72,20 +80,34 @@ class LoggerFactory {
             consoleHandler.level = this.level
             logger.addHandler(consoleHandler)
             logger.level = this.level
+
+            // File storage is always on, via the single shared handler. The guard keeps that one
+            // handler attached exactly once per logger (defence-in-depth against duplicates).
+            if (logger.handlers.none { it === fileHandler }) {
+                fileHandler.level = this.level
+                logger.addHandler(fileHandler)
+            }
             return logger
         }
 
         /**
-         * Retrieves a logger instance associated with the given class. If a logger is not already created for the
-         * class, a new logger is built and configured, then stored for future use.
+         * Retrieves a logger instance associated with the given class. If a logger is not already
+         * created for the class, a new logger is built and configured atomically, then stored.
          *
          * @param clazz The class for which the logger is to be retrieved or created.
          * @return The logger instance associated with the provided class.
          */
         fun getLogger(clazz: Class<*>): Logger =
-            map.getOrPut(clazz.name) { buildLogger(clazz.name) }
+            map.computeIfAbsent(clazz.name) { buildLogger(it) }
 
+        /**
+         * Retrieves a logger instance associated with the given name. If a logger is not already
+         * created for that name, a new logger is built and configured atomically, then stored.
+         *
+         * @param name The name of the logger to retrieve or create.
+         * @return The logger instance associated with the provided name.
+         */
         fun getLogger(name: String): Logger =
-            map.getOrPut(name) { buildLogger(name) }
+            map.computeIfAbsent(name) { buildLogger(it) }
     }
 }
