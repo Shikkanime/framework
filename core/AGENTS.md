@@ -5,7 +5,7 @@ This file contains specific rules for the `core` submodule. All agents working w
 ## Module Purpose & Scope
 The `core` module provides foundational utilities and logging capabilities for the Shikkanime framework, primarily centered around `LoggerFactory` and `LogFormatter`.
 
-## Submodule-Specific Rules (Règles du sous-module)
+## Submodule-Specific Rules
 
 1. **Zero Framework Dependencies**:
    - `core` MUST NOT depend on `exposed`, `validator`, `ktor`, or any other submodule.

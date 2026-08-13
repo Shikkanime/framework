@@ -5,7 +5,7 @@ This file contains specific rules for the `validator` submodule. All agents work
 ## Module Purpose & Scope
 The `validator` module provides a lightweight, reflection-based validation engine (`Validator`), standard validation annotations (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and the `ObjectNotValidException` error.
 
-## Submodule-Specific Rules (Règles du sous-module)
+## Submodule-Specific Rules
 
 1. **Module Hierarchy & Dependencies**:
    - `validator` requires Kotlin reflection (`kotlin-reflect`). It MUST NOT depend on `exposed` or `ktor`.

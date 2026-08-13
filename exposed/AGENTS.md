@@ -5,7 +5,7 @@ This file contains specific rules for the `exposed` submodule. All agents workin
 ## Module Purpose & Scope
 The `exposed` module handles database persistence, connection pooling (`HikariCP`), schema migrations (`Liquibase`), Exposed ORM integration, transaction management (`@Transactional` & `TransactionalProxy`), and repository base classes (`AbstractRepository`).
 
-## Submodule-Specific Rules (Règles du sous-module)
+## Submodule-Specific Rules
 
 1. **Module Hierarchy & Dependencies**:
    - `exposed` depends on `core`. It MUST NOT depend on `validator` or `ktor`.

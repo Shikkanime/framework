@@ -2,6 +2,7 @@ dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
     repositories {
         mavenCentral()
+        gradlePluginPortal()
     }
 }
 
@@ -16,5 +17,6 @@ include(
     ":exposed",
     ":validator",
     ":ktor",
-    ":cache"
+    ":cache",
+    ":plugin"
 )
