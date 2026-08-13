@@ -5,7 +5,7 @@ This file contains specific rules for the `cache` submodule. All agents working 
 ## Module Purpose & Scope
 The `cache` module provides a two-level caching engine combining an in-memory L1 LRU cache (`L1Cache`), a distributed L2 Valkey/Redis client wrapper (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 
-## Submodule-Specific Rules (Règles du sous-module)
+## Submodule-Specific Rules
 
 1. **Module Hierarchy & Dependencies**:
    - `cache` depends on `core`. It MUST NOT depend on `exposed`, `validator`, or `ktor`.

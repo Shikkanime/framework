@@ -2,18 +2,19 @@
 
 As an AI agent, your primary directive is to adhere to the established patterns, API contracts, and modular architecture of **Shikkanime Framework**. Your goal is to write clean, maintainable, and secure framework components in Kotlin that align with the existing codebase.
 
-This file contains your core, non-negotiable root rules (règles mère). For detailed framework implementation guidance, refer to the linked documents in the `guidelines` directory as well as submodule-specific rules in each subfolder (`core/AGENTS.md`, `cache/AGENTS.md`, `exposed/AGENTS.md`, `validator/AGENTS.md`, `ktor/AGENTS.md`).
+This file contains your core, non-negotiable root rules. For detailed framework implementation guidance, refer to the linked documents in the `guidelines` directory as well as submodule-specific rules in each subfolder (`core/AGENTS.md`, `cache/AGENTS.md`, `exposed/AGENTS.md`, `validator/AGENTS.md`, `ktor/AGENTS.md`, `plugin/AGENTS.md`).
 
 ## 1. The Prime Directive: Respect Framework Architecture & Module Boundaries
 
 The project is structured into distinct, decoupled framework modules. **Do not violate module boundaries or introduce circular dependencies.**
 
-- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor`
+- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `plugin` (Gradle convention plugins)
 - **`core`**: Base logging (`LoggerFactory`), utilities. MUST remain zero-dependency relative to other submodules.
 - **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`AbstractRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
 - **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), and a preconfigured HTTP client (`createHttpClient`).
+- **`plugin`**: Gradle convention plugins for downstream projects (e.g. `fr.shikkanime.framework.ktor`).
 
 For detailed architectural principles, read the [Architecture Guide](guidelines/ARCHITECTURE.md).
 
@@ -40,7 +41,7 @@ Refer to the style, convention, and testing guides:
 - [Cache Guide](guidelines/CACHE.md)
 - [Testing Guide](guidelines/TESTING.md)
 
-## 4. Submodule Rules (Règles par Sous-Module)
+## 4. Submodule Rules
 
 Each framework module has its own dedicated `AGENTS.md` specifying module-specific constraints and responsibilities:
 - [`core/AGENTS.md`](core/AGENTS.md): Core utilities & custom logging system.
@@ -48,6 +49,7 @@ Each framework module has its own dedicated `AGENTS.md` specifying module-specif
 - [`exposed/AGENTS.md`](exposed/AGENTS.md): Database wrappers, transaction management, Liquibase, and repository upsert DSL.
 - [`validator/AGENTS.md`](validator/AGENTS.md): Annotation-based reflection validator and custom constraints.
 - [`ktor/AGENTS.md`](ktor/AGENTS.md): Controller binding, HTTP argument resolution, response wrappers, and OpenAPI doc generation.
+- [`plugin/AGENTS.md`](plugin/AGENTS.md): Gradle convention plugins for downstream projects.
 
 ## 5. Before Submitting Changes
 
