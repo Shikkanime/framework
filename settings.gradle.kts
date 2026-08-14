@@ -18,5 +18,6 @@ include(
     ":validator",
     ":ktor",
     ":cache",
+    ":koin",
     ":plugin"
 )

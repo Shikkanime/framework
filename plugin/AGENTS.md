@@ -3,7 +3,7 @@
 This file contains specific rules for the `plugin` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `plugin` module provides Gradle convention plugins for downstream projects consuming **Shikkanime Framework**. It encapsulates plugin applications and version alignment (e.g., Ktor plugin integration via `fr.shikkanime.framework.ktor`).
+The `plugin` module provides Gradle convention plugins for downstream projects consuming **Shikkanime Framework**. It encapsulates plugin applications and version alignment (e.g., Ktor integration via `fr.shikkanime.framework.ktor`, Koin integration via `fr.shikkanime.framework.koin`).
 
 ## Submodule-Specific Rules
 

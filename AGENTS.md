@@ -8,13 +8,14 @@ This file contains your core, non-negotiable root rules. For detailed framework 
 
 The project is structured into distinct, decoupled framework modules. **Do not violate module boundaries or introduce circular dependencies.**
 
-- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `plugin` (Gradle convention plugins)
+- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `koin` (standalone dependency carrier) ; `plugin` (Gradle convention plugins)
 - **`core`**: Base logging (`LoggerFactory`), utilities. MUST remain zero-dependency relative to other submodules.
 - **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`AbstractRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
 - **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), and a preconfigured HTTP client (`createHttpClient`).
-- **`plugin`**: Gradle convention plugins for downstream projects (e.g. `fr.shikkanime.framework.ktor`).
+- **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
+- **`plugin`**: Gradle convention plugins for downstream projects (e.g. `fr.shikkanime.framework.ktor`, `fr.shikkanime.framework.koin`).
 
 For detailed architectural principles, read the [Architecture Guide](guidelines/ARCHITECTURE.md).
 
@@ -49,6 +50,7 @@ Each framework module has its own dedicated `AGENTS.md` specifying module-specif
 - [`exposed/AGENTS.md`](exposed/AGENTS.md): Database wrappers, transaction management, Liquibase, and repository upsert DSL.
 - [`validator/AGENTS.md`](validator/AGENTS.md): Annotation-based reflection validator and custom constraints.
 - [`ktor/AGENTS.md`](ktor/AGENTS.md): Controller binding, HTTP argument resolution, response wrappers, and OpenAPI doc generation.
+- [`koin/AGENTS.md`](koin/AGENTS.md): Koin dependency carrier (no source code).
 - [`plugin/AGENTS.md`](plugin/AGENTS.md): Gradle convention plugins for downstream projects.
 
 ## 5. Before Submitting Changes
