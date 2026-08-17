@@ -17,6 +17,7 @@ include(
     ":exposed",
     ":validator",
     ":ktor",
+    ":ktor-test",
     ":cache",
     ":koin",
     ":plugin"
