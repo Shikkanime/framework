@@ -10,5 +10,5 @@ dependencies {
     api(libs.bundles.ktorClientEcosystem)
     testImplementation(kotlin("test"))
     testImplementation(libs.bundles.testEcosystem)
-    testImplementation(libs.ktorServerTestHost)
+    testImplementation(project(":ktor-test"))
 }

@@ -8,6 +8,9 @@ core (base logging & core utils)
   ├── exposed (database, HikariCP, Exposed ORM, Liquibase, AbstractRepository, Transactional)
   └── validator (reflection-based validation, custom annotations)
         └── ktor (Ktor web framework integration, RestController, routing, OpenAPI, ResponseEntity)
+standalone dependency carriers (no source code):
+koin (standalone dependency carrier: Koin runtime APIs)
+ktor-test (standalone dependency carrier: Ktor server test host)
 ```
 
 ## Module Responsibilities
@@ -17,6 +20,8 @@ core (base logging & core utils)
 - **`exposed`**: Coordinates database connections via `DatabaseWrapper` (HikariCP + Exposed + Liquibase), provides `TransactionalProxy` dynamic proxies for `@Transactional` methods, and supplies `AbstractRepository` with an upsert DSL (`ifExists`, `newIfNotExists`, `applyFlush`).
 - **`validator`**: Provides a runtime reflection-based validation engine (`Validator`) and validation annotations (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`).
 - **`ktor`**: Bridges Ktor (server **and client**) with framework conventions. Discovers `@RestController` endpoints, binds routes (`@GetMapping`, `@PostMapping`, `@PatchMapping`), resolves parameter arguments (`@QueryParam`, `@PathParam`, `@RequestBody`), executes automatic validation via `@Valid`, packages responses with `ResponseEntity`, generates OpenAPI metadata (`@Operation`, `@ApiResponses`), handles error formatting via `MessageDto`, and exposes a preconfigured HTTP client (`createHttpClient`).
+- **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
+- **`ktor-test`**: Dependency carrier publishing Ktor's server test host (`ktor-server-test-host`) via `api(...)` so consumers write `testApplication`-based endpoint tests without referencing Ktor directly; contains no source code.
 
 ## Dependency Sharing
 
