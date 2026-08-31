@@ -8,4 +8,5 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.bundles.testEcosystem)
     testImplementation(libs.h2)
+    testImplementation(libs.bouncyCastle)
 }
