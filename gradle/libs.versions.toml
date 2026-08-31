@@ -58,7 +58,7 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 # Libraries can be bundled together for easier import
 [bundles]
-exposedEcosystem = ["exposedCore", "exposedDao", "exposedJdbc", "exposedKotlinDateTime", "exposedCrypt", "hikariCP", "liquibaseCore"]
+exposedEcosystem = ["exposedCore", "exposedDao", "exposedJdbc", "exposedKotlinDateTime", "exposedCrypt", "bouncyCastle", "hikariCP", "liquibaseCore"]
 ktorServerEcosystem = ["ktorServerCore", "ktorServerCio", "ktorServerContentNegociation", "ktorSerializationJson", "ktorSerializationProtobuf", "ktorSerializationCbor", "ktorServerSwagger", "swaggerCodeGenerators", "ktorServerCors"]
 ktorClientEcosystem = ["ktorClientCore", "ktorClientOkHttp", "ktorClientContentNegociation", "ktorSerializationJson", "ktorSerializationProtobuf", "ktorSerializationCbor"]
 serializationEcosystem = ["kotlinxSerializationCore", "kotlinxSerializationJson", "kotlinxSerializationProtobuf", "kotlinxSerializationCbor"]
