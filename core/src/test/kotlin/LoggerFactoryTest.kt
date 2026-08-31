@@ -9,6 +9,26 @@ import org.junit.jupiter.params.provider.ValueSource
 import java.util.logging.Level
 import java.util.logging.LogRecord
 
+private class LoggerHolder {
+    val logger = LoggerFactory.getLogger()
+    fun loggerName(): String = logger.name
+}
+
+private class CachedLoggerHolder {
+    val logger1 = LoggerFactory.getLogger()
+    val logger2 = LoggerFactory.getLogger()
+}
+
+private class CompanionLoggerHolder {
+    companion object {
+        val logger = LoggerFactory.getLogger()
+    }
+}
+
+private object ObjectLoggerHolder {
+    val logger = LoggerFactory.getLogger()
+}
+
 class LoggerFactoryTest {
 
     @Nested
@@ -38,6 +58,60 @@ class LoggerFactoryTest {
             // Then
             assertSame(logger1, logger2)
             assertEquals(loggerName, logger1.name)
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for LoggerFactory caller-class retrieval")
+    inner class CallerClassRetrievalTests {
+        @Test
+        fun `should name the logger after the calling class when called without arguments`() {
+            // Given
+            val holder = LoggerHolder()
+
+            // When
+            val loggerName = holder.loggerName()
+
+            // Then
+            assertEquals(LoggerHolder::class.java.name, loggerName)
+        }
+
+        @Test
+        fun `should return the same cached logger instance for repeated no-argument calls`() {
+            // Given
+            val holder = CachedLoggerHolder()
+
+            // When / Then
+            assertSame(holder.logger1, holder.logger2)
+            assertEquals(CachedLoggerHolder::class.java.name, holder.logger1.name)
+        }
+
+        @Test
+        fun `should name the logger after the enclosing class when called from a companion object`() {
+            // Given / When
+            val logger = CompanionLoggerHolder.logger
+
+            // Then
+            assertEquals(CompanionLoggerHolder::class.java.name, logger.name)
+        }
+
+        @Test
+        fun `should name the logger after the object class when called from an object declaration`() {
+            // Given / When
+            val logger = ObjectLoggerHolder.logger
+
+            // Then
+            assertEquals(ObjectLoggerHolder::class.java.name, logger.name)
+        }
+
+        @Test
+        fun `should return a logger equivalent to the explicit class variant for the calling class`() {
+            // Given / When
+            val inferred = LoggerHolder().logger
+            val explicit = LoggerFactory.getLogger(LoggerHolder::class.java)
+
+            // Then
+            assertSame(explicit, inferred)
         }
     }
 

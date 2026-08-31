@@ -17,7 +17,7 @@ import kotlin.reflect.full.hasAnnotation
  * Creates Ktor handlers that invoke controller functions and translate their results to responses.
  */
 internal object ControllerRequestHandler {
-    private val logger = LoggerFactory.getLogger(ControllerBinder::class.java)
+    private val logger = LoggerFactory.getLogger()
 
     private const val MILLIS_IN_NANOSECONDS = 1_000_000.0
     private const val KIBIBYTE = 1_024.0
