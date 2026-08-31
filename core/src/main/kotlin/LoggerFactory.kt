@@ -63,6 +63,9 @@ class LoggerFactory {
         private val fileWriter = LogFileWriter()
         private val fileHandler = FileLogHandler(fileWriter)
 
+        // Immutable and thread-safe; created once and reused by every no-arg getLogger() call.
+        private val callerClassWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+
         var level: Level = Level.ALL
 
         /**
@@ -91,11 +94,35 @@ class LoggerFactory {
         }
 
         /**
+         * Retrieves a logger instance associated with the class that called this method.
+         *
+         * The caller class is resolved with [StackWalker.getCallerClass], so the returned logger is
+         * named after the class where this method is invoked, which is typically the class holding
+         * the logger property:
+         *
+         * ```kotlin
+         * class UserService {
+         *     private val logger = LoggerFactory.getLogger()
+         * }
+         * ```
+         *
+         * The caller of this method must be the class that owns the logger. Loggers declared inside
+         * a `companion object` or an `object` are named after their declaring class, which is the
+         * expected behavior. Delegating initialization such as `by lazy { getLogger() }` resolves
+         * the lambda's class instead of the enclosing one; wrappers and lazy delegates must use
+         * [getLogger] with an explicit class parameter instead.
+         *
+         * @return The logger associated with the calling class.
+         */
+        fun getLogger(): Logger =
+            getLogger(callerClassWalker.getCallerClass())
+
+        /**
          * Retrieves a logger instance associated with the given class. If a logger is not already
          * created for the class, a new logger is built and configured atomically, then stored.
          *
          * @param clazz The class for which the logger is to be retrieved or created.
-         * @return The logger instance associated with the provided class.
+         * @return The logger associated with the provided class.
          */
         fun getLogger(clazz: Class<*>): Logger =
             map.computeIfAbsent(clazz.name) { buildLogger(it) }
