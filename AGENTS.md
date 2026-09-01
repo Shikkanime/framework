@@ -8,13 +8,14 @@ This file contains your core, non-negotiable root rules. For detailed framework 
 
 The project is structured into distinct, decoupled framework modules. **Do not violate module boundaries or introduce circular dependencies.**
 
-- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `koin` (standalone dependency carrier) ; `ktor-test` (standalone dependency carrier) ; `plugin` (Gradle convention plugins)
+- **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `koin` (standalone dependency carrier) <- `koin-exposed` ; `ktor-test` (standalone dependency carrier) ; `plugin` (Gradle convention plugins)
 - **`core`**: Base logging (`LoggerFactory`), utilities. MUST remain zero-dependency relative to other submodules.
 - **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`AbstractRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
 - **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), and a preconfigured HTTP client (`createHttpClient`).
 - **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
+- **`koin-exposed`**: Koin bridge for transactions — `applyTransactionalProxies()` post-processor replacing eligible singleton definitions with `TransactionalProxy`-wrapping factories; depends on `exposed` and the `koin` carrier.
 - **`ktor-test`**: Dependency carrier publishing the Ktor server test host (`ktor-server-test-host`) via `api(...)`; contains no source code.
 - **`plugin`**: Gradle convention plugins for downstream projects (e.g. `fr.shikkanime.framework.ktor`, `fr.shikkanime.framework.koin`).
 
@@ -53,6 +54,7 @@ Each framework module has its own dedicated `AGENTS.md` specifying module-specif
 - [`ktor/AGENTS.md`](ktor/AGENTS.md): Controller binding, HTTP argument resolution, response wrappers, and OpenAPI doc generation.
 - [`ktor-test/AGENTS.md`](ktor-test/AGENTS.md): Ktor server test host dependency carrier (no source code).
 - [`koin/AGENTS.md`](koin/AGENTS.md): Koin dependency carrier (no source code).
+- [`koin-exposed/AGENTS.md`](koin-exposed/AGENTS.md): Koin bridge for `@Transactional` auto-proxying.
 - [`plugin/AGENTS.md`](plugin/AGENTS.md): Gradle convention plugins for downstream projects.
 
 ## 5. Before Submitting Changes

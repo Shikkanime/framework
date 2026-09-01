@@ -66,3 +66,4 @@ testEcosystem = ["junitJupiterApi", "junitJupiterEngine", "junitJupiterParams", 
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+koinCompilerPlugin = { id = "io.insert-koin.compiler.plugin", version.ref = "koinCompiler" }
