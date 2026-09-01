@@ -16,6 +16,40 @@ import org.koin.dsl.module
 import java.util.UUID
 
 class TransactionalAutoProxyTest {
+    interface TransactionAwareService {
+        @Transactional
+        fun isTransactionActive(): Boolean
+    }
+
+    class TransactionAwareServiceImpl : TransactionAwareService {
+        override fun isTransactionActive(): Boolean =
+            TransactionManager.currentOrNull() != null
+    }
+
+    interface PlainService {
+        fun id(): String
+    }
+
+    class PlainServiceImpl : PlainService {
+        override fun id(): String =
+            "plain"
+    }
+
+    interface AmbiguousFirstService {
+        @Transactional
+        fun first(): Int
+    }
+
+    interface AmbiguousSecondService {
+        @Transactional
+        fun second(): Int
+    }
+
+    class AmbiguousServiceImpl : AmbiguousFirstService, AmbiguousSecondService {
+        override fun first(): Int = 1
+        override fun second(): Int = 2
+    }
+
     @BeforeEach
     fun stopGlobalKoin() {
         stopKoin()
@@ -79,25 +113,6 @@ class TransactionalAutoProxyTest {
         }
     }
 
-    interface TransactionAwareService {
-        @Transactional
-        fun isTransactionActive(): Boolean
-    }
-
-    class TransactionAwareServiceImpl : TransactionAwareService {
-        override fun isTransactionActive(): Boolean =
-            TransactionManager.currentOrNull() != null
-    }
-
-    interface PlainService {
-        fun id(): String
-    }
-
-    class PlainServiceImpl : PlainService {
-        override fun id(): String =
-            "plain"
-    }
-
     @Nested
     @DisplayName("Given a Koin registry with an implementation of two @Transactional interfaces")
     inner class GivenAmbiguousImplementation {
@@ -121,20 +136,5 @@ class TransactionalAutoProxyTest {
                 koin.close()
             }
         }
-    }
-
-    interface AmbiguousFirstService {
-        @Transactional
-        fun first(): Int
-    }
-
-    interface AmbiguousSecondService {
-        @Transactional
-        fun second(): Int
-    }
-
-    class AmbiguousServiceImpl : AmbiguousFirstService, AmbiguousSecondService {
-        override fun first(): Int = 1
-        override fun second(): Int = 2
     }
 }
