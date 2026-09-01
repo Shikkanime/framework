@@ -4,10 +4,8 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":exposed"))
-    implementation(project(":koin"))
-    api(platform(libs.koinBom))
-    api(libs.koinCore)
+    api(project(":exposed"))
+    api(project(":koin"))
     testImplementation(project(":core"))
     testImplementation(kotlin("test"))
     testImplementation(libs.bundles.testEcosystem)
