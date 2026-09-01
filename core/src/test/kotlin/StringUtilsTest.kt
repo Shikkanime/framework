@@ -83,16 +83,21 @@ class StringUtilsTest {
         }
 
         @Test
-        fun `should ignore special character requirement when special characters are excluded`() {
+        fun `should reject special character requirement when special characters are excluded`() {
             // Given / When
-            val result = StringUtils.generateRandomString(
-                length = LENGTH,
-                includeSpecial = false,
-                shouldHaveAtLeastOneSpecial = true
-            )
+            val exception = assertThrows(IllegalArgumentException::class.java) {
+                StringUtils.generateRandomString(
+                    length = LENGTH,
+                    includeSpecial = false,
+                    shouldHaveAtLeastOneSpecial = true
+                )
+            }
 
             // Then
-            assertFalse(result.any(StringUtils.ALPHABET_SPECIAL::contains))
+            assertEquals(
+                "Cannot require at least one special character when special characters are not included",
+                exception.message
+            )
         }
 
         @ParameterizedTest
