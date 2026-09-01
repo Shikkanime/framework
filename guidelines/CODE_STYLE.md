@@ -32,3 +32,32 @@ When adding internal framework handlers or reflection logic, document the techni
 // Retrieve target implementation method to check for @Transactional annotation
 val targetMethod = target.javaClass.getMethod(method.name, *method.parameterTypes)
 ```
+
+- **Do not comment trivial accessor chains** (`let`, `get`, property reads): the function name and
+  the receiver already say what happens.
+
+```kotlin
+// Bad: restates the code
+val logger = cached?.let { return it } // return cached instance if present
+
+// Good: no comment, the code speaks
+cached?.let { return it }
+```
+
+## Annotations on Declarations
+
+- When a declaration carries **a single annotation**, keep the annotation and the declaration on
+  the **same line**:
+
+```kotlin
+@Volatile private var cached: Any? = null
+```
+
+- When it carries **several annotations**, put each annotation on its own line above the
+  declaration:
+
+```kotlin
+@JvmStatic
+@Provides
+fun provideService(): Service = ServiceImpl()
+```

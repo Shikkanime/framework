@@ -128,14 +128,10 @@ private class ProxyFactory<T : Any>(
     @Suppress("UNCHECKED_CAST")
     proxyBeanDefinition(original.beanDefinition, proxyInterface) as BeanDefinition<T>
 ) {
-    @Volatile
-    private var cached: Any? = null
+    @Volatile private var cached: Any? = null
 
     @Suppress("UNCHECKED_CAST")
     override fun get(context: ResolutionContext): T {
-        // Fast path outside the lock: once the proxy exists, no synchronization is needed.
-        cached?.let { return it as T }
-
         // Double-checked locking mirrors SingleInstanceFactory: Koin resolution is concurrent,
         // and two simultaneous get() calls must not produce two distinct proxies.
         val result = KoinPlatformTools.synchronized(this) {
@@ -146,8 +142,8 @@ private class ProxyFactory<T : Any>(
                 return@synchronized existing as T
             }
 
-            // The factory produces the JDK proxy of the interface; the target cast is safe
-            // because eligibility already proved the implementation realizes proxyInterface.
+            // The target cast is safe because eligibility already proved the implementation
+            // realizes proxyInterface.
             val target = original.get(context) as T
             val proxy = TransactionalProxy(target, proxyInterface.java as Class<Any>).create()
 
