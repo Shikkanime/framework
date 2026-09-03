@@ -14,14 +14,18 @@ import io.ktor.server.routing.openapi.*
 import kotlinx.serialization.ExperimentalSerializationApi
 
 /**
- * Configures the default content negotiation and CORS modules.
+ * Configures the default content negotiation and CORS modules, and registers the built-in [HealthController].
  *
  * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework configurations,
- * while CORS accepts requests from any host using Ktor's default HTTP methods.
+ * while CORS accepts requests from any host using Ktor's default HTTP methods. A `GET /health` route
+ * returning `OK` is bound automatically so every consumer exposes the same UP endpoint.
  */
 fun Application.configureDefaultModules() {
     configureContentNegotiation()
     configureCORS()
+    routing {
+        ControllerBinder.register(this, listOf(HealthController()))
+    }
 }
 
 /**
