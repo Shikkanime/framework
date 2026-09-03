@@ -20,5 +20,6 @@ include(
     ":ktor-test",
     ":cache",
     ":koin",
+    ":koin-exposed",
     ":plugin"
 )

@@ -94,6 +94,37 @@ class MyComponentTest {
 }
 ```
 
+### 7. Test Fixtures at the Top of the Test Class
+
+Declare test fixtures — the interfaces, stubs, and helper classes used by the tests — **at the very
+top of the parent test class**, before any `@Nested` group. Readers see the whole fixture surface
+first, then the test logic.
+
+```kotlin
+class TransactionalAutoProxyTest {
+    // Fixtures first: everything the tests below rely on.
+    interface TransactionAwareService {
+        @Transactional
+        fun isTransactionActive(): Boolean
+    }
+
+    class TransactionAwareServiceImpl : TransactionAwareService {
+        override fun isTransactionActive(): Boolean =
+            TransactionManager.currentOrNull() != null
+    }
+
+    // ... then the @Nested groups.
+    @Nested
+    @DisplayName("Given a Koin registry with a @Transactional service")
+    inner class GivenTransactionalService {
+        // ...
+    }
+}
+```
+
+Never declare fixtures between two `@Nested` groups: a reader scanning the file must not
+encounter an implementation class in the middle of the test tree.
+
 ## 6. Test Every Public Framework API
 
 The framework is **consumed by other projects**: every public API it ships (server controllers, the preconfigured `HttpClient`, argument resolvers, response wrappers, etc.) must be covered by tests. This makes dependency upgrades explicit: a **Ktor** (or other framework dependency) bump that changes behavior — or a version that drifts — immediately breaks a framework test, instead of silently shipping a broken version to consuming projects.
