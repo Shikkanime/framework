@@ -9,6 +9,33 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 class TransactionalProxyTest {
+    interface TransactionAwareService {
+        @Transactional
+        fun isTransactionActive(): Boolean
+    }
+
+    class TransactionAwareServiceImpl : TransactionAwareService {
+        override fun isTransactionActive(): Boolean =
+            TransactionManager.currentOrNull() != null
+    }
+
+    interface ThrowingService {
+        @Transactional
+        fun fail(message: String)
+
+        fun plainFail(message: String)
+    }
+
+    class ThrowingServiceImpl : ThrowingService {
+        override fun fail(message: String) {
+            throw IllegalArgumentException(message)
+        }
+
+        override fun plainFail(message: String) {
+            throw IllegalStateException(message)
+        }
+    }
+
     @Test
     fun `should use the wrapper associated with the current database by default`() {
         // Given
@@ -109,32 +136,5 @@ class TransactionalProxyTest {
             driverClassName = "org.h2.Driver",
             maximumPoolSize = 1
         )
-    }
-
-    interface TransactionAwareService {
-        @Transactional
-        fun isTransactionActive(): Boolean
-    }
-
-    class TransactionAwareServiceImpl : TransactionAwareService {
-        override fun isTransactionActive(): Boolean =
-            TransactionManager.currentOrNull() != null
-    }
-
-    interface ThrowingService {
-        @Transactional
-        fun fail(message: String)
-
-        fun plainFail(message: String)
-    }
-
-    class ThrowingServiceImpl : ThrowingService {
-        override fun fail(message: String) {
-            throw IllegalArgumentException(message)
-        }
-
-        override fun plainFail(message: String) {
-            throw IllegalStateException(message)
-        }
     }
 }
