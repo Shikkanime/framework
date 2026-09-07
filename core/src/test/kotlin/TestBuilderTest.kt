@@ -1,25 +1,28 @@
 package fr.shikkanime.core
 
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class TestBuilderTest {
     interface Sample
 
-    class SampleBuilder : TestBuilder<Sample> {
+    class SampleImpl : Sample
+
+    class SampleBuilder(private val instance: Sample) : TestBuilder<Sample> {
         override fun build(): Sample =
-            object : Sample {}
+            instance
     }
 
     @Test
-    fun `should produce the instance returned by the builder implementation`() {
+    fun `should produce the instance configured on the builder`() {
         // Given
-        val builder = SampleBuilder()
+        val expected = SampleImpl()
+        val builder = SampleBuilder(expected)
 
         // When
         val built = builder.build()
 
         // Then
-        assertTrue(built is Sample)
+        assertEquals(expected, built)
     }
 }
