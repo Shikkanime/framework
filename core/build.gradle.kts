@@ -1,5 +1,6 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
+    `java-test-fixtures`
 }
 
 dependencies {
