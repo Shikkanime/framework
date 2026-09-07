@@ -39,6 +39,7 @@ ktorServerSwagger = { module = "io.ktor:ktor-server-swagger", version.ref = "kto
 swaggerCodeGenerators = { module = "io.swagger.codegen.v3:swagger-codegen-generators", version.ref = "swaggerCodeGenerators" }
 ktorServerCors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
 ktorServerTestHost = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+ktorServerAuthJwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktorClientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktorClientOkHttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktorClientContentNegociation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
