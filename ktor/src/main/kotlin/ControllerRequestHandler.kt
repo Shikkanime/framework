@@ -1,6 +1,7 @@
 package fr.shikkanime.ktor
 
 import fr.shikkanime.core.LoggerFactory
+import fr.shikkanime.ktor.auth.JwtPrincipalMissingException
 import fr.shikkanime.ktor.dtos.MessageDto
 import fr.shikkanime.validator.Validator
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
@@ -44,9 +45,9 @@ internal object ControllerRequestHandler {
     ): suspend RoutingContext.() -> Unit = {
         logger.info("Start - ${controllerClass.simpleName}.${function.name}")
         val start = System.nanoTime()
-        val args = ControllerArgumentResolver.resolve(call, function, instance)
 
         try {
+            val args = ControllerArgumentResolver.resolve(call, function, instance)
             args.filter { (kParameter, value) -> kParameter.hasAnnotation<Valid>() && value != null }
                 .forEach { (_, value) -> Validator.validate(value!!) }
 
@@ -64,6 +65,9 @@ internal object ControllerRequestHandler {
             when (cause) {
                 is ObjectNotValidException ->
                     call.respond(HttpStatusCode.BadRequest, MessageDto.error(cause.message))
+
+                is JwtPrincipalMissingException ->
+                    call.respond(HttpStatusCode.Unauthorized, MessageDto.error("You are not authorized to access this resource"))
 
                 else ->
                     call.respond(HttpStatusCode.InternalServerError, MessageDto.error("An unexpected error occurred"))
