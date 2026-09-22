@@ -16,12 +16,14 @@ The `ktor-test` module is a **dependency carrier**: it publishes Ktor's server t
    - Never add application code, helpers, or wrappers here.
 
 2. **Dependency exposure**:
-   - The Ktor version is centralized in `gradle/libs.versions.toml` (`ktorServerTestHost`).
+   - Ktor versions are centralized in `gradle/libs.versions.toml` (`ktorServerTestHost`,
+     `ktorClientMock`).
    - Dependencies are exposed with `api(...)` (Dependency Sharing rule), never `implementation`.
 
 3. **Consumption**:
    - Unlike the Koin compiler plugin, there is **no Gradle plugin** for this module. Consumers
      declare it explicitly in their test scope:
      `testImplementation("fr.shikkanime.framework:ktor-test:<frameworkVersion>")`.
-   - `testImplementation`-only consumption keeps the test host **off the consumer's production
-     classpath** while centralizing the version in the framework catalog.
+   - `testImplementation`-only consumption keeps the test host and the mock client engine
+     **off the consumer's production classpath** while centralizing the versions in the
+     framework catalog.
