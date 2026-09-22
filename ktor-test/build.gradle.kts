@@ -4,4 +4,5 @@ plugins {
 
 dependencies {
     api(libs.ktorServerTestHost)
+    api(libs.ktorClientMock)
 }

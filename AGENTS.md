@@ -16,7 +16,7 @@ The project is structured into distinct, decoupled framework modules. **Do not v
 - **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), a preconfigured HTTP client (`createHttpClient`), and the built-in `/health` UP endpoint auto-registered by `configureDefaultModules`.
 - **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
 - **`koin-exposed`**: Koin bridge for transactions — `applyTransactionalProxies()` post-processor replacing eligible singleton definitions with `TransactionalProxy`-wrapping factories; depends on `exposed` and the `koin` carrier.
-- **`ktor-test`**: Dependency carrier publishing the Ktor server test host (`ktor-server-test-host`) via `api(...)`; contains no source code.
+- **`ktor-test`**: Dependency carrier publishing the Ktor server test host (`ktor-server-test-host`) and the Ktor client mock engine (`ktor-client-mock`) via `api(...)`; contains no source code.
 - **`plugin`**: Gradle convention plugins for downstream projects (e.g. `fr.shikkanime.framework.ktor`, `fr.shikkanime.framework.koin`).
 
 For detailed architectural principles, read the [Architecture Guide](guidelines/ARCHITECTURE.md).
