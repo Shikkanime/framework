@@ -29,6 +29,7 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.intercept
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.server.routing.route
@@ -40,6 +41,10 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /** Name of the rate limiter guarding the GraphQL endpoint. */
 internal const val GRAPHQL_RATE_LIMIT_NAME = "graphql"
+
+private const val BATCH_REFUSED = "Batch requests are not supported by this endpoint"
+private const val UNREADABLE_REFUSED = "Request refused: the GraphQL document could not be read"
+private const val INTROSPECTION_REFUSED = "Query refused: schema introspection is disabled"
 
 private val REQUEST_JSON = Json { ignoreUnknownKeys = true }
 
@@ -114,44 +119,85 @@ fun Application.configureGraphQL(
     }
 
     routing {
-        rateLimit(RateLimitName(GRAPHQL_RATE_LIMIT_NAME)) {
-            // The plugin registers its own POST handler, so a sibling `post { }` would be tried
-            // first only by luck of registration order. The guard is therefore an interception on
-            // the route, which runs before any handler: a document that breaks the bounds is
-            // answered here and the engine never sees it.
-            intercept(ApplicationCallPipeline.Call) {
-                val call = context
-                val requestPath = call.request.local.uri.substringBefore('?')
-
-                if (!isGraphQLPath(requestPath, config.normalizedPath)) {
-                    proceed()
-                    return@intercept
-                }
-
-                val document = parseOrNull(call.receiveText(), logger)
-
-                if (document != null && exceedsLimits(document, limits)) {
-                    respondRefusal(refusalMessage(document, limits))
-                    finish()
-                } else {
-                    proceed()
-                }
+        // `rateLimit` is applied only when the plugin is installed: Ktor throws at startup when a
+        // route references a limiter that was never registered, so calling it unconditionally
+        // would make `rateLimit.enabled = false` a boot-time crash rather than an opt-out.
+        if (config.rateLimit.enabled) {
+            rateLimit(RateLimitName(GRAPHQL_RATE_LIMIT_NAME)) {
+                bindGraphQLRoute(config, limits, logger)
             }
-
-            route(config.normalizedPath) {
-                // requestWeight reads the body to price the query, which would otherwise consume
-                // the one-shot request stream and leave the GraphQL handler with an empty body.
-                // The in-memory cache suits a GraphQL body: small and short-lived, so a file cache
-                // would be pure overhead.
-                install(DoubleReceive) {
-                    maxSize(config.requestBodyLimit)
-                    useFileForCache { false }
-                }
-            }
-
-            graphQLPostRoute(config.normalizedPath)
+        } else {
+            bindGraphQLRoute(config, limits, logger)
         }
     }
+}
+
+/**
+ * Registers the guarded GraphQL route on the current receiver.
+ *
+ * Kept out of [configureGraphQL] so the same body serves both the rate-limited and the opt-out
+ * branch, instead of being duplicated across the two paths.
+ */
+private fun Route.bindGraphQLRoute(
+    config: GraphQLConfig,
+    limits: SecurityLimits,
+    logger: Logger
+) {
+// The plugin registers its own POST handler, so a sibling `post { }` would be tried
+        // first only by luck of registration order. The guard is therefore an interception on
+        // the route, which runs before any handler: a document that breaks the bounds is
+        // answered here and the engine never sees it.
+        intercept(ApplicationCallPipeline.Call) {
+            val call = context
+            val requestPath = call.request.local.uri.substringBefore('?')
+
+            if (!isGraphQLPath(requestPath, config.normalizedPath)) {
+                proceed()
+                return@intercept
+            }
+
+            // A GET carries its query in the URL, not in a body, and a batch carries several
+            // documents at once. Reading only the POST body would leave both unchecked, so the
+            // query is taken from wherever the request actually carries it.
+            val carried = call.carriedQuery()
+
+            if (carried.isBatch) {
+                respondRefusal(BATCH_REFUSED)
+                finish()
+                return@intercept
+            }
+
+            val document = parseOrNull(carried, logger)
+
+            when {
+                // An unparseable document must not reach the engine: it is exactly the shape an
+                // attacker uses to slip past a check that only understands valid syntax.
+                document == null -> {
+                    respondRefusal(UNREADABLE_REFUSED)
+                    finish()
+                }
+
+                exceedsLimits(document, limits) -> {
+                    respondRefusal(refusalMessage(document, limits))
+                    finish()
+                }
+
+                else -> proceed()
+            }
+        }
+
+        route(config.normalizedPath) {
+            // requestWeight reads the body to price the query, which would otherwise consume
+            // the one-shot request stream and leave the GraphQL handler with an empty body.
+            // The in-memory cache suits a GraphQL body: small and short-lived, so a file cache
+            // would be pure overhead.
+            install(DoubleReceive) {
+                maxSize(config.requestBodyLimit)
+                useFileForCache { false }
+            }
+        }
+
+    graphQLPostRoute(config.normalizedPath)
 }
 
 /**
@@ -205,10 +251,10 @@ private suspend fun ApplicationCall.graphqlWeight(
     limits: SecurityLimits,
     logger: Logger
 ): Int {
-    val body = readCachedText() ?: return config.rateLimit.minimumRequestWeight
-    val document = parseOrNull(body, logger)
+    val carried = carriedQuery()
+    val document = parseOrNull(carried, logger)
 
-    if (document == null || exceedsLimits(document, limits)) {
+    if (carried.isBatch || document == null || exceedsLimits(document, limits)) {
         return maxOf(config.rateLimit.minimumRequestWeight, config.rateLimit.limit)
     }
 
@@ -226,17 +272,18 @@ private suspend fun ApplicationCall.readCachedText(): String? =
  * those is charged the maximum weight upstream, so this function only has to be honest about
  * failure, not about the consequence.
  */
-private fun parseOrNull(body: String, logger: Logger): Document? {
-    if (isBatchRequest(body)) {
+private fun parseOrNull(carried: CarriedQuery, logger: Logger): Document? {
+    if (carried.isBatch) {
+        logger.warning("Refusing a graphql batch request")
         return null
     }
 
-    val query = body.extractQuery() ?: return null
+    val query = (carried as? CarriedQuery.Single)?.query ?: return null
 
     return try {
         Parser().parseDocument(query)
     } catch (exception: InvalidSyntaxException) {
-        logger.warning("Refusing a malformed graphql document: ${exception.message}")
+        logger.warning("Refusing a malformed graphql document")
         null
     } catch (exception: ParseCancelledTooDeepException) {
         logger.warning("Refusing a graphql document too deep to parse")
@@ -244,12 +291,61 @@ private fun parseOrNull(body: String, logger: Logger): Document? {
     }
 }
 
-/** Message describing why a document was refused, safe to return to a client. */
+/**
+ * The query a request carries, and whether it is a batch.
+ *
+ * A batch is not a document this module can price: graphql-java would execute every element as a
+ * separate operation, so a batch would slip past a check that only ever looks at one parsed
+ * document. It is therefore never allowed through — see [isBatch].
+ */
+internal sealed interface CarriedQuery {
+    /** One query, ready to be parsed. */
+    data class Single(val query: String) : CarriedQuery
+
+    /** A batch array, which this module refuses. */
+    data object Batch : CarriedQuery
+
+    /** A request carrying no query at all. */
+    data object None : CarriedQuery
+
+    /** Whether this request is a batch array. */
+    val isBatch: Boolean
+        get() = this is Batch
+}
+
+/**
+ * Reads the query a call carries, from the body for a POST and from the query string for a GET.
+ *
+ * Both are checked: routing only the POST would leave the GET variant unchecked, because a GET has
+ * no body to read, so the document would look absent and the request would proceed unpriced.
+ */
+internal suspend fun ApplicationCall.carriedQuery(): CarriedQuery {
+    val body = readCachedText()
+
+    if (body != null && body.isNotBlank()) {
+        return if (isBatchRequest(body)) CarriedQuery.Batch else CarriedQuery.Single(body.extractQuery() ?: "")
+    }
+
+    val fromUrl = request.queryParameters["query"]
+
+    return if (fromUrl.isNullOrBlank()) CarriedQuery.None else CarriedQuery.Single(fromUrl)
+}
+
+/**
+ * Message describing why a document was refused, safe to return to a client.
+ *
+ * Reports the bound that actually broke rather than the first one checked, so an operator reading
+ * the response is not sent to the wrong limit.
+ */
 private fun refusalMessage(document: Document, limits: SecurityLimits): String {
-    return if (estimateCost(document) > limits.maxQueryComplexity) {
-        "Query refused: its estimated cost exceeds the maximum of ${limits.maxQueryComplexity}"
-    } else {
-        "Query refused: its nesting depth exceeds the maximum of ${limits.maxQueryDepth}"
+    val cost = estimateCost(document)
+
+    return when {
+        isIntrospectionOnly(document) -> INTROSPECTION_REFUSED
+        cost > limits.maxQueryComplexity ->
+            "Query refused: its estimated cost of $cost exceeds the maximum of ${limits.maxQueryComplexity}"
+
+        else -> "Query refused: its nesting depth exceeds the maximum of ${limits.maxQueryDepth}"
     }
 }
 

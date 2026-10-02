@@ -61,7 +61,10 @@ class CostEstimatorTest {
         fun `should grow linearly with the alias count`() {
             // Given
             val five = parse("{ a1: ping a2: ping a3: ping a4: ping a5: ping }")
-            val ten = parse("{ a1: ping a2: ping a3: ping a4: ping a5: ping a6: ping a7: ping a8: ping a9: ping a10: ping }")
+            val ten = parse(
+                "{ a1: ping a2: ping a3: ping a4: ping a5: ping " +
+                    "a6: ping a7: ping a8: ping a9: ping a10: ping }"
+            )
 
             // When
             val costFive = estimateCost(five)

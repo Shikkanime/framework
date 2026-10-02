@@ -127,7 +127,11 @@ class SecurityInstrumentationsTest {
         @Test
         fun `should be refused when disabled`() {
             // Given
-            val closed = SecurityLimits(maxQueryDepth = 6, maxQueryComplexity = 100, introspectionEnabled = false)
+            val closed = SecurityLimits(
+                maxQueryDepth = 6,
+                maxQueryComplexity = 100,
+                introspectionEnabled = false
+            )
 
             // Then
             assertTrue(isRefused("{ __schema { types { name } } }", closed))
@@ -147,7 +151,8 @@ class SecurityInstrumentationsTest {
         @Test
         fun `should refuse the mixed query on its own merits`() {
             // Given — deep enough to break the limit, disguised as introspection.
-            val mixed = "{ __schema { types { name } } " + "episodes { ".repeat(12) + "title" + " }".repeat(12) + " }"
+            val deep = "episodes { ".repeat(12) + "title" + " }".repeat(12)
+            val mixed = "{ __schema { types { name } } $deep }"
 
             // Then
             assertTrue(isRefused(mixed))

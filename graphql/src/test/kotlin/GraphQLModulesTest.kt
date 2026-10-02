@@ -45,7 +45,9 @@ class GraphQLModulesTest {
         fun ping(): String = "pong"
     }
 
-    private fun ApplicationTestBuilder.graphqlApplication(config: GraphQLConfig = this@GraphQLModulesTest.config) {
+    private fun ApplicationTestBuilder.graphqlApplication(
+        config: GraphQLConfig = this@GraphQLModulesTest.config
+    ) {
         application {
             configureGraphQL(
                 config = config,
@@ -190,6 +192,99 @@ class GraphQLModulesTest {
                 bodyOf(response).contains("errors"),
                 "expected a refusal, got ${response.status} ${bodyOf(response)}"
             )
+        }
+    }
+
+    @Nested
+    @DisplayName("Given a batch request")
+    inner class GivenBatchRequest {
+        @Test
+        fun `should be refused`() = testApplication {
+            // A batch is not one document: graphql-java would execute every element separately, so
+            // a check that parses a single document would never see the others.
+            // Given
+            graphqlApplication()
+
+            // When
+            val batch = "[" + (1..10).joinToString(",") { """{"query":"{ ping }"}""" } + "]"
+            val response = post(batch)
+
+            // Then
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertTrue(bodyOf(response).contains("Batch"), "got ${bodyOf(response)}")
+        }
+    }
+
+    @Nested
+    @DisplayName("Given an unreadable document")
+    inner class GivenUnreadableDocument {
+        @Test
+        fun `should be refused instead of reaching the engine`() = testApplication {
+            // Malformed syntax is the shape an attacker uses to slip past a check that only
+            // understands valid documents.
+            // Given
+            graphqlApplication()
+
+            // When
+            val response = post("""{"query":"{ ping "}""")
+
+            // Then
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertTrue(bodyOf(response).contains("could not be read"), "got ${bodyOf(response)}")
+        }
+
+        @Test
+        fun `should refuse a body carrying no query`() = testApplication {
+            // Given
+            graphqlApplication()
+
+            // When
+            val response = post("""{"variables":{}}""")
+
+            // Then
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+    }
+
+    @Nested
+    @DisplayName("Given introspection disabled")
+    inner class GivenIntrospectionDisabled {
+        @Test
+        fun `should refuse an introspection query`() = testApplication {
+            // Given
+            graphqlApplication(GraphQLConfig(
+                maxQueryDepth = 6,
+                maxQueryComplexity = 100,
+                requestBodyLimit = 4 * 1024,
+                introspectionEnabled = false,
+                rateLimit = RateLimitConfig(limit = 5, refillPeriod = 5.minutes)
+            ))
+
+            // When
+            val response = post("""{"query":"{ __schema { types { name } } }"}""")
+
+            // Then
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertTrue(bodyOf(response).contains("introspection"), "got ${bodyOf(response)}")
+        }
+
+        @Test
+        fun `should still answer a normal query`() = testApplication {
+            // Given
+            graphqlApplication(GraphQLConfig(
+                maxQueryDepth = 6,
+                maxQueryComplexity = 100,
+                requestBodyLimit = 4 * 1024,
+                introspectionEnabled = false,
+                rateLimit = RateLimitConfig(limit = 5, refillPeriod = 5.minutes)
+            ))
+
+            // When
+            val response = post(query())
+
+            // Then
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(bodyOf(response).contains("pong"), "got ${bodyOf(response)}")
         }
     }
 

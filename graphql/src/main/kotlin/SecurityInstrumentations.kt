@@ -48,17 +48,14 @@ fun isIntrospectionOnly(document: Document): Boolean {
 
 private fun isIntrospectionField(selection: Selection<*>): Boolean =
     when (selection) {
-        is Field -> {
-            val childSelections = selection.selectionSet
+        // Only a meta field *is* introspection. A business field merely containing a meta field is
+        // a smuggling attempt: exempting it would let a heavy query ride under the exemption.
+        is Field -> selection.name in META_FIELDS
 
-            if (childSelections == null) {
-                selection.name == "__schema" || selection.name == "__type"
-            } else {
-                selection.name == "__schema" || selection.name == "__type" || isIntrospectionField(childSelections)
-            }
-        }
+        // An inline fragment wrapping a meta field is still introspection, since it selects
+        // nothing else.
+        is InlineFragment -> selection.selectionSet.selections.all(::isIntrospectionField)
 
-        is InlineFragment -> isIntrospectionField(selection.selectionSet)
         is FragmentSpread -> false
         else -> false
     }
@@ -136,7 +133,11 @@ private fun depthOf(
             else -> null
         }
 
-        if (childSelections == null) current + 1 else depthOf(childSelections, current + 1, fragments, expanding)
+        if (childSelections == null) {
+            current + 1
+        } else {
+            depthOf(childSelections, current + 1, fragments, expanding)
+        }
     } ?: current + 1
 }
 
@@ -146,3 +147,6 @@ private fun documentFragments(document: Document): Map<String, FragmentDefinitio
         .associateBy { fragment -> fragment.name }
 
 private const val MAX_TRACKED_DEPTH = 64
+
+/** The root fields that make a document an introspection request. */
+private val META_FIELDS = setOf("__schema", "__type")

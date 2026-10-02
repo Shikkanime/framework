@@ -1,0 +1,85 @@
+# Module Rules: GraphQL (`graphql`)
+
+This file contains specific rules for the `graphql` submodule. All agents working within this
+submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
+
+## Module Purpose & Scope
+
+The `graphql` module serves the same use cases as REST over a second transport, using
+`graphql-kotlin` (ExpediaGroup) on top of `graphql-java`. It owns the GraphQL engine wiring, the
+schema configuration, the `/graphql` route, the security stack that guards it, and the
+orchestration of consumer-provided DataLoaders.
+
+It does **not** own business logic, repositories, or resolvers. Those belong to the consumer.
+
+## 1. Module Hierarchy & Dependencies
+
+- `graphql` depends on `core`, `ktor`, and the graphql-kotlin libraries.
+- `graphql` **MUST NOT** depend on `exposed`. The framework has no repository and cannot know what
+  to batch; a DataLoader that did would be a framework coupled to a domain that changes.
+- Consumers that need DataLoaders declare a `KotlinDataLoaderRegistryFactory` instance in Koin and
+  pass it to `configureGraphQL`. Nothing else.
+
+## 2. Security Stack — non-negotiable
+
+The endpoint must carry all four guards. Each one covers a vector the others do not:
+
+| Guard | Covers |
+|---|---|
+| `RequestBodyLimit` | Oversized payload, measured on the **decoded** stream so compression cannot inflate past it |
+| `Compression` | Response size; safe alongside the body limit precisely because that limit is measured after decoding |
+| `DoubleReceive` | Makes the body re-readable, which `requestWeight` needs; without it every request breaks |
+| `RateLimit` + `requestWeight` | Sustained abuse, charged by query cost rather than by request count |
+
+Plus the document bounds, enforced by an interception on the route:
+
+- `SecurityLimits.maxQueryDepth`
+- `SecurityLimits.maxQueryComplexity`
+- introspection exemption, when `introspectionEnabled`
+
+**The refusal guard must stay an interception.** Registering it as a sibling `post { }` handler
+lets the plugin's own handler win by registration order, which silently executes the hostile
+document instead of refusing it. This was a real bug, caught by the route tests.
+
+**`requestWeight` charges the whole bucket for an unpriceable document** — a batch array, invalid
+syntax, a query too deep for the parser, or one that breaks the bounds. Never zero: a zero-weight
+request is unlimited, which is worse than no rate limit at all.
+
+## 3. Cost Model Rules
+
+`estimateCost` is a pure function of the document: no schema lookup, no database access. The cost
+must be knowable *before* execution.
+
+- Every field costs one unit, plus the cost of its own selections.
+- A **fragment spread pays every time it appears**. A shared "already seen" set would price the
+  fragment bomb at the cost of a single expansion — the opposite of what is needed.
+- The depth walk resolves spreads, so a document three levels deep cannot hide a fifty-level
+  expansion.
+- Cycles are tracked **per branch**, so two sibling spreads of one fragment each pay full price
+  while a self-referencing fragment still terminates.
+- Introspection is exempt only when the document asks for **nothing else**. A document mixing
+  `__schema` and business fields is priced normally, or the exemption becomes a smuggling route.
+
+## 4. Introspection
+
+Public by default, matching the already-public Swagger UI. The exemption from the depth and
+complexity bounds is explicit and lives in `isIntrospectionOnly`, because the introspection query
+is deep and expensive by nature: lowering the threshold instead would break GraphiQL and every
+codegen client.
+
+## 5. Error Contract
+
+A refused document answers **HTTP 400** with a GraphQL `errors` array. GraphQL reports execution
+errors with HTTP 200, but a refused document never reached the engine — it is a rejected request,
+not a failed execution, and a caller branching on the status code must tell the two apart.
+
+Never surface an internal exception message to a client.
+
+## 6. Out of Scope for This Module
+
+- Websocket subscriptions: the artifact ships `getSubscriptionServer()`, but the route does not
+  advertise subscriptions, and `schemaSubscriptions` should stay empty unless that changes.
+- Batch requests: priced at the maximum weight so they are never cheap, and not re-analysed per
+  operation.
+- Rate limiting the REST surface: the plugin is installed, but wiring it to every existing route is
+  a separate change.
