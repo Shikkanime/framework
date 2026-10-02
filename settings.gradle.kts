@@ -18,6 +18,7 @@ include(
     ":validator",
     ":ktor",
     ":ktor-test",
+    ":graphql",
     ":cache",
     ":koin",
     ":koin-exposed",
