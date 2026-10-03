@@ -65,7 +65,7 @@ fun estimateCost(document: Document, limits: SecurityLimits = SecurityLimits.DEF
     // its total is exact and must not be clamped: the same number is charged to the rate limiter,
     // and clamping a legitimately expensive document down to the ceiling would misprice it.
     return when {
-        budget.exhausted() -> ceiling
+        budget.exhausted() || budget.truncated() -> ceiling
         else -> total.coerceAtLeast(1L)
     }
 }
@@ -98,7 +98,16 @@ private fun selectionCost(
     budget: CostBudget,
     depth: Int
 ): Long {
-    if (budget.exhausted() || depth >= MAX_PRICED_DEPTH) {
+    // Both stops mean "the rest of this document was never priced", so both mark the walk
+    // truncated. A depth cut that only returned zero would leave the budget untouched and the
+    // caller would report the partial total as if it were the real one.
+    if (depth >= MAX_PRICED_DEPTH) {
+        budget.markTruncated()
+
+        return 0L
+    }
+
+    if (budget.exhausted()) {
         return 0L
     }
 
@@ -148,8 +157,18 @@ private fun fragmentCost(
  * cheaper than the document really is.
  */
 private class CostBudget(private var visitsLeft: Long) {
+    private var wasTruncated = false
+
     fun exhausted(): Boolean =
         visitsLeft <= 0L
+
+    /** Records that the walk stopped before reaching the whole document. */
+    fun markTruncated() {
+        wasTruncated = true
+    }
+
+    fun truncated(): Boolean =
+        wasTruncated
 
     fun spend() {
         visitsLeft--

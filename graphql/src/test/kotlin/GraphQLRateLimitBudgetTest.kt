@@ -121,7 +121,13 @@ class GraphQLRateLimitBudgetTest {
             graphql(defaults)
 
             // When
-            post("""{"query":"${aliases(150)}}"}""")
+            // `aliases` already closes its selection set, so the body must not close it twice —
+            // an extra brace made this a parse failure, and the test then measured the
+            // unreadable-body penalty instead of the cost of a heavy document.
+            val heavy = post("""{"query":"${aliases(150)}"}""")
+
+            assertEquals(HttpStatusCode.OK, heavy.status, "a query within the bound must be answerable")
+
             val cheap = post("""{"query":"{ ping }"}""").status
 
             // Then
@@ -140,7 +146,16 @@ class GraphQLRateLimitBudgetTest {
             graphql(defaults)
 
             // When
-            post("""{"query":"${aliases(400)}}"}""")
+            // 400 aliases is past the complexity bound, so this one *is* refused by the bounds —
+            // with a single closing brace, not by the parser.
+            val refused = post("""{"query":"${aliases(400)}"}""")
+
+            assertEquals(
+                HttpStatusCode.BadRequest,
+                refused.status,
+                "the document must be refused on its own cost"
+            )
+
             val cheap = post("""{"query":"{ ping }"}""").status
 
             // Then

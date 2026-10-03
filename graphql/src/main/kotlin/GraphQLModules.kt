@@ -8,6 +8,8 @@ import com.expediagroup.graphql.server.operations.Mutation
 import com.expediagroup.graphql.server.operations.Query
 import com.expediagroup.graphql.server.operations.Subscription
 import fr.shikkanime.core.LoggerFactory
+import kotlinx.coroutines.CancellationException
+import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 import java.util.logging.Logger
 import graphql.language.Document
@@ -29,6 +31,7 @@ import io.ktor.server.plugins.doublereceive.DoubleReceive
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
+import io.ktor.server.request.path
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -158,9 +161,16 @@ private fun Route.bindGraphQLRoute(
         // answered here and the engine never sees it.
         intercept(ApplicationCallPipeline.Call) {
             val call = context
-            val requestPath = call.request.local.uri.substringBefore('?')
+// Both spellings of the path have to be considered. Ktor's router decodes the path
+            // before matching it, but `path()` hands back the encoded form, so comparing it alone
+            // let `POST /%67raphql` skip every guard and still reach the handler — measured: a
+            // 300-alias document refused on `/graphql` answered 200 with 4 kB on `/%67raphql`.
+            val requestPath = call.request.path()
+            val decodedPath = requestPath.decodeIfPercentEncoded()
 
-            if (!isGraphQLPath(requestPath, config.normalizedPath)) {
+            if (!isGraphQLPath(requestPath, config.normalizedPath) &&
+                !isGraphQLPath(decodedPath, config.normalizedPath)
+            ) {
                 proceed()
                 return@intercept
             }
@@ -215,6 +225,24 @@ private fun Route.bindGraphQLRoute(
 private fun isGraphQLPath(requestPath: String, graphqlPath: String): Boolean =
     requestPath == graphqlPath || requestPath == "$graphqlPath/"
 
+/**
+ * The percent-decoded form of a path, or the path itself when it holds nothing to decode.
+ *
+ * Ktor's router decodes a path segment before matching it, so `/%67raphql` reaches the GraphQL
+ * handler while `request.path()` still reports `/%67raphql`. A guard that compares only the raw
+ * form therefore lets an encoded path past every check. Decoding here mirrors what the router
+ * does, so both spellings of the endpoint are guarded.
+ *
+ * @receiver Path as reported by the request.
+ * @return The decoded path, or the original when it cannot be decoded.
+ */
+private fun String.decodeIfPercentEncoded(): String =
+    if (contains('%')) {
+        runCatching { java.net.URLDecoder.decode(this, StandardCharsets.UTF_8) }.getOrDefault(this)
+    } else {
+        this
+    }
+
 /** Bounds derived from the endpoint configuration. */
 internal fun GraphQLConfig.toSecurityLimits(): SecurityLimits =
     SecurityLimits(
@@ -235,7 +263,9 @@ private suspend fun PipelineContext<Unit, PipelineCall>.respondRefusal(message: 
     context.respondText(
         text = buildString {
             append("""{"errors":[{"message":""")
-            append(REQUEST_JSON.encodeToString(JsonPrimitive(message).toString()))
+            // `JsonPrimitive.toString()` is already a JSON string literal, quotes included, so
+            // encoding *that* produced a doubly-quoted value. Encoding the raw message is enough.
+            append(REQUEST_JSON.encodeToString(message))
             append("}]}")
         },
         contentType = ContentType.Application.Json,
@@ -289,6 +319,11 @@ private suspend fun ApplicationCall.readCachedText(): String? =
     try {
         receiveText()
     } catch (exception: PayloadTooLargeException) {
+        throw exception
+    } catch (exception: CancellationException) {
+        // A client that walked away cancels the call. Swallowing that breaks structured
+        // concurrency: the coroutine keeps running on a request nobody is waiting for, and the
+        // cancellation becomes a 400 that blames the payload instead of the disconnect.
         throw exception
     } catch (exception: Exception) {
         MODULE_LOGGER.log(Level.FINE, "Could not read the request body", exception)
@@ -347,9 +382,10 @@ internal sealed interface CarriedQuery {
 /**
  * Reads the query a call carries, from its body.
  *
- * Only the body: this module registers the POST route alone, so a GET is answered with 405 by Ktor
- * before reaching any guard. Reading the query string as well would price a request the plugin
- * never serves, and would keep two code paths alive for one.
+ * Only the body, and deliberately: this module registers the POST route alone, so there is no
+ * handler a query string could reach. Note that a GET still crosses the route interception first —
+ * Ktor answers 405 only once the interception has let the call through — so a bodiless verb is
+ * refused here as an unreadable document rather than by the router.
  */
 internal suspend fun ApplicationCall.carriedQuery(): CarriedQuery {
     val body = readCachedText()

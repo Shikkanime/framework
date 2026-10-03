@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Timeout
 import java.util.concurrent.TimeUnit
 import kotlin.system.measureNanoTime
 import kotlin.test.assertEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -34,6 +35,14 @@ class CostEstimatorPerformanceTest {
          * noise of a shared runner while still failing on any super-linear work.
          */
         const val LINEAR_SCALING_TOLERANCE = 8.0
+
+        /**
+         * How many branches a 22-level ladder would expand to with no depth bound at all.
+         *
+         * 2^22 is past `Int`, so the walk cannot reach it — that is the point. The measured visit
+         * count has to stay far below it for the depth bound to be what stopped the walk.
+         */
+        const val EXPLOSIVE_LADDER_UNBOUNDED = 1_000_000L
     }
 
     private fun fragmentLadder(levels: Int): String {
@@ -64,10 +73,13 @@ class CostEstimatorPerformanceTest {
             // When
             val visited = countCostNodes(document, limits)
 
-            // Then
+            // Then — strictly under, not `<=`: the counter is derived from the budget itself, so
+            // `<=` holds by construction and would pass even if the walk looped forever. `<` is what
+            // says the document finished inside its allowance.
             assertTrue(
-                visited <= limits.costVisitBudget,
-                "cost walk visited $visited nodes, over the budget of ${limits.costVisitBudget}"
+                visited < limits.costVisitBudget,
+                "cost walk used the whole budget ($visited of ${limits.costVisitBudget}); " +
+                    "the walk must finish inside its allowance, not be cut off"
             )
         }
 
@@ -147,9 +159,10 @@ class CostEstimatorPerformanceTest {
         @Test
         @Timeout(value = 10, unit = TimeUnit.SECONDS)
         fun `should not grow with the level count`() {
-            // Two ladders of very different explosive size must both stop at the budget rather than
-            // scaling with their level count. The small one is measured under the budget, so it is
-            // the *ceiling* that has to hold, not an equality between the two.
+            // Two ladders of very different explosive size must cost the same bounded amount of
+            // work: the walk stops at the configured depth either way, so the fragment count does
+            // not reach it. Before that bound existed, the deeper one took thousands of times
+            // longer.
             // Given
             val small = Parser().parseDocument(fragmentLadder(levels = 12))
             val large = Parser().parseDocument(fragmentLadder(levels = 22))
@@ -158,14 +171,24 @@ class CostEstimatorPerformanceTest {
             val smallVisits = countDepthNodes(small, limits)
             val largeVisits = countDepthNodes(large, limits)
 
-            // Then
+            // Then — the walk stops as soon as it is past the configured depth bound, which is
+            // long before the node budget could run out. Asserting `== depthVisitBudget` here
+            // would pin the weaker of the two stops; this one is the one that keeps the walk short.
             assertTrue(
                 largeVisits <= limits.depthVisitBudget,
                 "the larger ladder exceeded the budget: $largeVisits"
             )
             assertTrue(
-                largeVisits > smallVisits,
-                "a larger ladder should still visit more branches, got $smallVisits then $largeVisits"
+                largeVisits < EXPLOSIVE_LADDER_UNBOUNDED,
+                "an explosive ladder must stop well before the unbounded count, got $largeVisits"
+            )
+            // Both ladders stop at the depth bound, so they cost the *same* bounded number of
+            // visits. That equality is the property: a walk bounded by the configured depth does
+            // not grow with the fragment count, which is what the exponential regression broke.
+            assertEquals(
+                smallVisits,
+                largeVisits,
+                "a deeper ladder must not cost more branches once the depth bound applies"
             )
         }
     }

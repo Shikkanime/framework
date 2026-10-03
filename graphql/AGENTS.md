@@ -94,6 +94,20 @@ complexity bounds is explicit and lives in `isIntrospectionOnly`, because the in
 is deep and expensive by nature: lowering the threshold instead would break GraphiQL and every
 codegen client.
 
+Three rules hold that exemption, and each closes a measured bypass:
+
+- **Only `__schema` and `__type` grant it** (`META_FIELDS`). `__typename` resolves against the
+  query type, not the schema, so it carries no introspection work.
+- **The document must read the schema somewhere** (`documentReadsSchema`). Otherwise
+  `{ __typename }` qualifies, and so does a document aliasing it thousands of times — the cheapest
+  possible bomb, free of charge. `__typename` may still *accompany* a real schema read
+  (`COMPANION_META_FIELDS`), which is what GraphiQL, Apollo and Relay send.
+- **A subtree may not compound through spreads.** Fields under `__schema` are bounded by the
+  schema's own shape, so a fixed selection count is a fixed cost; a spread that reaches another
+  spread is not. `{ __schema { types { ...F0 } } }` with a ladder of them qualified as
+  introspection on name alone and skipped both bounds entirely. A spread reaching only fields is
+  allowed — that is what a codegen client's `...FullType` looks like.
+
 ## 5. Error Contract
 
 A refused document answers **HTTP 400** with a GraphQL `errors` array. GraphQL reports execution
