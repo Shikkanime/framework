@@ -8,6 +8,7 @@ import com.expediagroup.graphql.server.operations.Mutation
 import com.expediagroup.graphql.server.operations.Query
 import com.expediagroup.graphql.server.operations.Subscription
 import fr.shikkanime.core.LoggerFactory
+import java.util.logging.Level
 import java.util.logging.Logger
 import graphql.language.Document
 import graphql.parser.InvalidSyntaxException
@@ -20,6 +21,7 @@ import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.PipelineCall
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.compression.gzip
@@ -48,6 +50,9 @@ private const val INTROSPECTION_REFUSED = "Query refused: schema introspection i
 
 private val REQUEST_JSON = Json { ignoreUnknownKeys = true }
 
+/** Logger for the module's own diagnostics, outside the application lifecycle. */
+private val MODULE_LOGGER = LoggerFactory.getLogger()
+
 /**
  * Installs the GraphQL module: engine, schema, route, and the security stack guarding it.
  *
@@ -70,6 +75,9 @@ private val REQUEST_JSON = Json { ignoreUnknownKeys = true }
  * enabled by this module, so declaring one would advertise an endpoint that cannot serve it.
  * @property schemaPackages Packages scanned for annotated types. The generator refuses to build
  * a schema without one, so it is required even though listing the queries explicitly is enough.
+ * @property rateLimitKey Identifies the bucket each request is charged to. Defaults to the caller's
+ * address, the only identity this module can know since it owns no authentication. A consumer
+ * behind a shared address should pass its own key, or one client spends everyone's budget.
  */
 fun Application.configureGraphQL(
     config: GraphQLConfig = GraphQLConfig(),
@@ -77,7 +85,8 @@ fun Application.configureGraphQL(
     schemaPackages: List<String>,
     schemaQueries: List<Query> = emptyList(),
     schemaMutations: List<Mutation> = emptyList(),
-    schemaSubscriptions: List<Subscription> = emptyList()
+    schemaSubscriptions: List<Subscription> = emptyList(),
+    rateLimitKey: (ApplicationCall) -> Any = defaultRateLimitKey
 ) {
     val logger = LoggerFactory.getLogger()
     val limits = config.toSecurityLimits()
@@ -112,7 +121,7 @@ fun Application.configureGraphQL(
         install(RateLimit) {
             register(RateLimitName(GRAPHQL_RATE_LIMIT_NAME)) {
                 rateLimiter(limit = config.rateLimit.limit, refillPeriod = config.rateLimit.refillPeriod)
-                requestKey { call -> call.request.local.remoteHost }
+                requestKey(rateLimitKey)
                 requestWeight { call, _ -> call.graphqlWeight(config, limits, logger) }
             }
         }
@@ -156,9 +165,6 @@ private fun Route.bindGraphQLRoute(
                 return@intercept
             }
 
-            // A GET carries its query in the URL, not in a body, and a batch carries several
-            // documents at once. Reading only the POST body would leave both unchecked, so the
-            // query is taken from wherever the request actually carries it.
             val carried = call.carriedQuery()
 
             if (carried.isBatch) {
@@ -240,11 +246,15 @@ private suspend fun PipelineContext<Unit, PipelineCall>.respondRefusal(message: 
 /**
  * Cost charged to the rate limit bucket for one request.
  *
- * A document that cannot be priced — a batch array, invalid syntax, or a query too deep for the
- * parser — is charged the whole bucket, so no caller gets cheap work by sending something
- * unpriceable. A document that breaks the bounds is charged the whole bucket too: refusing it is
- * far cheaper than running it, and the caller should feel the difference. The weight is never zero,
- * because a zero-weight request is unlimited — worse than having no rate limit at all.
+ * A document that cannot be priced — a batch array, invalid syntax, a query too deep for the
+ * parser, or one that breaks the bounds — is charged [RateLimitConfig.unpriceableRequestWeight], a
+ * moderate fixed penalty rather than the whole bucket. The floor matters most: the weight is never
+ * zero, because a zero-weight request is unlimited and worse than having no rate limit at all. The
+ * ceiling matters just as much: charging a refusal the whole bucket would hand an attacker a free
+ * denial of service, since a few hundred bytes of malformed input would lock out every client
+ * behind the same address for a whole refill period.
+ *
+ * A priced document pays its real cost, clamped to what the bucket can absorb.
  */
 private suspend fun ApplicationCall.graphqlWeight(
     config: GraphQLConfig,
@@ -255,15 +265,36 @@ private suspend fun ApplicationCall.graphqlWeight(
     val document = parseOrNull(carried, logger)
 
     if (carried.isBatch || document == null || exceedsLimits(document, limits)) {
-        return maxOf(config.rateLimit.minimumRequestWeight, config.rateLimit.limit)
+        return config.rateLimit.unpriceableRequestWeight
+            .coerceAtLeast(config.rateLimit.minimumRequestWeight)
+            .coerceAtMost(config.rateLimit.limit)
     }
 
-    return estimateCost(document).coerceAtLeast(config.rateLimit.minimumRequestWeight)
+    val cost = estimateCost(document, limits)
+
+    return cost.toRateLimitWeight(
+        minimum = config.rateLimit.minimumRequestWeight,
+        maximum = config.rateLimit.limit
+    )
 }
 
-/** Reads the cached body, which DoubleReceive made re-readable. */
+/**
+ * Reads the cached body, which DoubleReceive made re-readable.
+ *
+ * An oversized body is not an unreadable one: [io.ktor.server.plugins.PayloadTooLargeException]
+ * means the request broke the body limit, and answering "could not be read" would send an operator
+ * hunting for a parsing bug that does not exist. It is re-thrown so the platform answers 413.
+ */
 private suspend fun ApplicationCall.readCachedText(): String? =
-    runCatching { receiveText() }.getOrNull()
+    try {
+        receiveText()
+    } catch (exception: PayloadTooLargeException) {
+        throw exception
+    } catch (exception: Exception) {
+        MODULE_LOGGER.log(Level.FINE, "Could not read the request body", exception)
+
+        null
+    }
 
 /**
  * Parses the query carried by a GraphQL request body.
@@ -314,21 +345,26 @@ internal sealed interface CarriedQuery {
 }
 
 /**
- * Reads the query a call carries, from the body for a POST and from the query string for a GET.
+ * Reads the query a call carries, from its body.
  *
- * Both are checked: routing only the POST would leave the GET variant unchecked, because a GET has
- * no body to read, so the document would look absent and the request would proceed unpriced.
+ * Only the body: this module registers the POST route alone, so a GET is answered with 405 by Ktor
+ * before reaching any guard. Reading the query string as well would price a request the plugin
+ * never serves, and would keep two code paths alive for one.
  */
 internal suspend fun ApplicationCall.carriedQuery(): CarriedQuery {
     val body = readCachedText()
 
-    if (body != null && body.isNotBlank()) {
-        return if (isBatchRequest(body)) CarriedQuery.Batch else CarriedQuery.Single(body.extractQuery() ?: "")
+    if (body.isNullOrBlank()) {
+        return CarriedQuery.None
     }
 
-    val fromUrl = request.queryParameters["query"]
+    if (isBatchRequest(body)) {
+        return CarriedQuery.Batch
+    }
 
-    return if (fromUrl.isNullOrBlank()) CarriedQuery.None else CarriedQuery.Single(fromUrl)
+    val query = body.extractQuery() ?: return CarriedQuery.None
+
+    return CarriedQuery.Single(query)
 }
 
 /**
@@ -338,12 +374,11 @@ internal suspend fun ApplicationCall.carriedQuery(): CarriedQuery {
  * the response is not sent to the wrong limit.
  */
 private fun refusalMessage(document: Document, limits: SecurityLimits): String {
-    val cost = estimateCost(document)
-
     return when {
         isIntrospectionOnly(document) -> INTROSPECTION_REFUSED
-        cost > limits.maxQueryComplexity ->
-            "Query refused: its estimated cost of $cost exceeds the maximum of ${limits.maxQueryComplexity}"
+
+        estimateCost(document, limits) > limits.maxQueryComplexity ->
+            "Query refused: its estimated cost exceeds the maximum of ${limits.maxQueryComplexity}"
 
         else -> "Query refused: its nesting depth exceeds the maximum of ${limits.maxQueryDepth}"
     }

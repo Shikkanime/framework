@@ -41,9 +41,23 @@ Plus the document bounds, enforced by an interception on the route:
 lets the plugin's own handler win by registration order, which silently executes the hostile
 document instead of refusing it. This was a real bug, caught by the route tests.
 
-**`requestWeight` charges the whole bucket for an unpriceable document** — a batch array, invalid
-syntax, a query too deep for the parser, or one that breaks the bounds. Never zero: a zero-weight
-request is unlimited, which is worse than no rate limit at all.
+**`requestWeight` never charges zero, and never charges the whole bucket for a refusal.** A batch
+array, invalid syntax, a query too deep for the parser, or one that breaks the bounds is charged
+`RateLimitConfig.unpriceableRequestWeight` — a fixed, moderate penalty. A zero-weight request is
+unlimited, which is worse than no rate limit at all; and charging the whole bucket would hand an
+attacker a free denial of service, since a few hundred bytes of malformed input would lock out
+every client sharing the same address for a whole refill period.
+
+**`RateLimitConfig.limit` must exceed `maxQueryComplexity`.** Otherwise the bucket is smaller than
+the complexity the bounds accept, and a query the bounds explicitly allow can never be executed: the
+limiter refuses it for as long as the refill period lasts.
+
+**`configureGraphQL`'s `rateLimitKey` defaults to the caller's address.** The module owns no
+authentication, so that is the only thing it can know — and behind a shared address every client
+then spends one budget. Consumers that can identify their callers should pass their own key. It is
+a parameter of `configureGraphQL`, not a field of `RateLimitConfig`: a function held in a data class
+becomes part of `equals` and `hashCode`, and two configurations built with equivalent lambdas would
+compare unequal.
 
 ## 3. Cost Model Rules
 
@@ -53,6 +67,19 @@ must be knowable *before* execution.
 - Every field costs one unit, plus the cost of its own selections.
 - A **fragment spread pays every time it appears**. A shared "already seen" set would price the
   fragment bomb at the cost of a single expansion — the opposite of what is needed.
+- **The price must stay affordable to compute.** Paying for every spread is what makes the price
+  attack-shaped, but a ladder of fragments where each level spreads the next one twice costs 2^k,
+  which reaches billions of nodes in under a kilobyte of payload. Both walks therefore stop at a
+  budget derived from the configured bounds — `SecurityLimits.costCeiling`,
+  `costVisitBudget`, `depthVisitBudget`. A walk that has to be *exact* is a walk an attacker can
+  make unbounded.
+- The ceiling is **derived from `maxQueryComplexity`, never a hard-coded constant**. A fixed
+  ceiling below a consumer's bound would saturate under it, and the hostile document would then
+  pass the comparison.
+- Arithmetic is **`Long`**. An unbounded `Int` sum wraps, and a wrapped zero both passes the bound
+  and weighs one unit in the limiter.
+- Cost is checked **before** depth, so a document refused on cost never pays for the more explosive
+  of the two walks.
 - The depth walk resolves spreads, so a document three levels deep cannot hide a fifty-level
   expansion.
 - Cycles are tracked **per branch**, so two sibling spreads of one fragment each pay full price
@@ -79,7 +106,8 @@ Never surface an internal exception message to a client.
 
 - Websocket subscriptions: the artifact ships `getSubscriptionServer()`, but the route does not
   advertise subscriptions, and `schemaSubscriptions` should stay empty unless that changes.
-- Batch requests: priced at the maximum weight so they are never cheap, and not re-analysed per
-  operation.
+- Batch requests: **refused outright** with a 400, not priced. graphql-java would execute every
+  element of the array as a separate operation, so a batch would answer N operations having been
+  analysed as one document. The refusal is in the interception, ahead of the handler.
 - Rate limiting the REST surface: the plugin is installed, but wiring it to every existing route is
   a separate change.
