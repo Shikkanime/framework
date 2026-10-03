@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import java.util.concurrent.TimeUnit
+import kotlin.system.measureNanoTime
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -24,6 +25,16 @@ import kotlin.test.assertTrue
  */
 class CostEstimatorPerformanceTest {
     private val limits = SecurityLimits(maxQueryDepth = 8, maxQueryComplexity = 200)
+
+    private companion object {
+        /**
+         * How much slower a four-times-larger document may price.
+         *
+         * A linear walk lands near 4, quadratic near 16. Eight leaves room for the measurement
+         * noise of a shared runner while still failing on any super-linear work.
+         */
+        const val LINEAR_SCALING_TOLERANCE = 8.0
+    }
 
     private fun fragmentLadder(levels: Int): String {
         val document = StringBuilder("{ ...F0 }")
@@ -57,6 +68,36 @@ class CostEstimatorPerformanceTest {
             assertTrue(
                 visited <= limits.costVisitBudget,
                 "cost walk visited $visited nodes, over the budget of ${limits.costVisitBudget}"
+            )
+        }
+
+        @Test
+        @Timeout(value = 10, unit = TimeUnit.SECONDS)
+        fun `should scale its time with the field count, not its square`() {
+            // A wall-clock assertion on a single document proves nothing here: measured, pricing a
+            // 4000-field document takes ~0.013 ms, so a 250 ms threshold would still pass after a
+            // 3800x regression — exactly the false confidence a loose bound gives. What matters is
+            // the *shape* of the cost, so this compares two documents and asserts a ratio: pricing
+            // four times the fields must stay roughly four times the work, not sixteen. A regression
+            // to quadratic or exponential work fails at any absolute threshold.
+            // Given
+            val small = Parser().parseDocument("{ " + (1..1_000).joinToString(" ") { "a$it: ping" } + " }")
+            val large = Parser().parseDocument("{ " + (1..4_000).joinToString(" ") { "a$it: ping" } + " }")
+
+            // Warm up so JIT compilation is not charged to the first measurement.
+            repeat(20) { estimateCost(small, limits); estimateCost(large, limits) }
+
+            // When
+            val smallCost = measureNanoTime { repeat(40) { estimateCost(small, limits) } }
+            val largeCost = measureNanoTime { repeat(40) { estimateCost(large, limits) } }
+
+            // Then — generous on both sides so a loaded runner cannot trip it, tight enough that
+            // super-linear work fails.
+            val ratio = largeCost.toDouble() / smallCost.coerceAtLeast(1L)
+            assertTrue(
+                ratio < LINEAR_SCALING_TOLERANCE,
+                "4x the fields cost ${"%.1f".format(ratio)}x the time, over the " +
+                    "${LINEAR_SCALING_TOLERANCE}x a linear walk allows"
             )
         }
 
