@@ -1,6 +1,13 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.auth.JwtClaims
+import fr.shikkanime.ktor.auth.JwtConfig
+import fr.shikkanime.ktor.auth.JwtPrincipalMissingException
+import fr.shikkanime.ktor.auth.JwtPrincipalView
+import fr.shikkanime.ktor.auth.JwtUser
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -58,6 +65,7 @@ internal object ControllerArgumentResolver {
         instance: Any
     ): Map<KParameter, Any?> {
         val args = mutableMapOf<KParameter, Any?>()
+        var hasUnresolvedJwtUser = false
         val instanceParameter = function.parameters.firstOrNull { it.kind == KParameter.Kind.INSTANCE }
 
         if (instanceParameter != null)
@@ -89,8 +97,54 @@ internal object ControllerArgumentResolver {
             if (kParameter.hasAnnotation<RequestBody>()) {
                 args[kParameter] = call.receive(kParameter.type.jvmErasure)
             }
+
+            if (kParameter.hasAnnotation<JwtUser>()) {
+                val principal = call.principal<JWTPrincipal>()
+                val uuid = principal?.payload?.getClaim(JwtConfig.CLAIM_UUID)?.asString()
+                val kClass = kParameter.type.classifier as? KClass<*>
+
+                when {
+                    uuid == null -> {
+                        if (kParameter.type.isMarkedNullable) args[kParameter] = null
+                        else hasUnresolvedJwtUser = true
+                    }
+
+                    kClass == Uuid::class -> args[kParameter] = Uuid.parse(uuid)
+                    kClass == String::class -> args[kParameter] = uuid
+                }
+            }
+
+            if (kParameter.hasAnnotation<JwtClaims>()) {
+                val principal = call.principal<JWTPrincipal>()
+
+                when {
+                    principal != null -> args[kParameter] = principal.toJwtPrincipal()
+                    kParameter.type.isMarkedNullable -> args[kParameter] = null
+                    else -> hasUnresolvedJwtUser = true
+                }
+            }
         }
+
+        if (hasUnresolvedJwtUser)
+            throw JwtPrincipalMissingException()
 
         return args
     }
+
+    /**
+     * Converts the Ktor JWT principal into the framework-owned view.
+     *
+     * @param principal Ktor principal wrapping the verified payload.
+     * @return framework principal with claims flattened to strings.
+     */
+    private fun JWTPrincipal.toJwtPrincipal(): JwtPrincipalView = JwtPrincipalView(
+        subject = payload.getClaim(JwtConfig.CLAIM_UUID).asString(),
+        roles = payload.getClaim(JwtConfig.CLAIM_ROLES).asList(String::class.java)?.toSet() ?: emptySet(),
+        claims = payload.claims.keys.associateWith { key ->
+            val claim = payload.getClaim(key)
+            claim.asString() ?: claim.asList(String::class.java)?.joinToString(",")
+            ?: claim.asBoolean()?.toString() ?: claim.asInt()?.toString() ?: ""
+        },
+        expiresAt = payload.expiresAt.time
+    )
 }

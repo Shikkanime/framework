@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    api(libs.ktorServerAuthJwt)
     api(project(":validator"))
     api(libs.bundles.ktorServerEcosystem)
     api(libs.bundles.ktorClientEcosystem)
