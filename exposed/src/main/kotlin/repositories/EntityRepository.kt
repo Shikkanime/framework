@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.SizedIterable
  * @param ENTITY type of entity managed by this repository.
  * @property entityClass Exposed DAO class used to create and query entities.
  */
-abstract class AbstractRepository<T : Any, ENTITY : Entity<T>>(
+abstract class EntityRepository<T : Any, ENTITY : Entity<T>>(
     entityClass: EntityClass<T, ENTITY>
 ) : UpsertRepository<T, ENTITY>(entityClass) {
     /**

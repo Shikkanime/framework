@@ -5,7 +5,7 @@ Respect the framework modular structure and dependency hierarchy:
 ```text
 core (base logging & core utils)
   ├── cache (two-level caching, L1 LRU + L2 Valkey binary format with CBOR, bucket versioning, single-flight loader)
-  ├── exposed (database, HikariCP, Exposed ORM, Liquibase, AbstractRepository, Transactional)
+  ├── exposed (database, HikariCP, Exposed ORM, Liquibase, EntityRepository, Transactional)
   └── validator (reflection-based validation, custom annotations)
         └── ktor (Ktor web framework integration, RestController, routing, OpenAPI, ResponseEntity)
 standalone dependency carriers (no source code):
@@ -18,7 +18,7 @@ ktor-test (standalone dependency carrier: Ktor server test host)
 
 - **`core`**: Contains root utility classes like `LoggerFactory` and custom log formatters. Must not depend on database or web frameworks.
 - **`cache`**: Provides a two-level caching facade (`Cache`), combining an in-memory L1 LRU cache (`L1Cache`) with a distributed L2 Valkey/Redis store (`ValkeyWrapper`), CBOR binary encoding (`BinaryCodec`), bucket versioning, and concurrent loader deduplication (`SingleFlight`).
-- **`exposed`**: Coordinates database connections via `DatabaseWrapper` (HikariCP + Exposed + Liquibase), provides `TransactionalProxy` dynamic proxies for `@Transactional` methods, and supplies `AbstractRepository` with an upsert DSL (`ifExists`, `newIfNotExists`, `applyFlush`).
+- **`exposed`**: Coordinates database connections via `DatabaseWrapper` (HikariCP + Exposed + Liquibase), provides `TransactionalProxy` dynamic proxies for `@Transactional` methods, and supplies `EntityRepository` (entity reads) and `UpsertRepository` with an upsert DSL (`ifExists`, `newIfNotExists`, `applyFlush`).
 - **`validator`**: Provides a runtime reflection-based validation engine (`Validator`) and validation annotations (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`).
 - **`ktor`**: Bridges Ktor (server **and client**) with framework conventions. Discovers `@RestController` endpoints, binds routes (`@GetMapping`, `@PostMapping`, `@PatchMapping`), resolves parameter arguments (`@QueryParam`, `@PathParam`, `@RequestBody`), executes automatic validation via `@Valid`, packages responses with `ResponseEntity`, generates OpenAPI metadata (`@Operation`, `@ApiResponses`), handles error formatting via `MessageDto`, and exposes a preconfigured HTTP client (`createHttpClient`).
 - **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
