@@ -1,7 +1,22 @@
 package fr.shikkanime.exposed.repositories
 
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.dao.id.IdTable
 import org.jetbrains.exposed.v1.dao.Entity
 import org.jetbrains.exposed.v1.dao.EntityClass
+
+/**
+ * Builds the entity reference of [id] for this table without querying the database.
+ *
+ * Use it when a repository assigns a foreign key owned by another table (a child row referencing
+ * its aggregate root), where [UpsertRepository.getReference] would build the wrong table reference.
+ *
+ * @param T type of the entity identifier.
+ * @param id identifier of the referenced entity.
+ * @return the typed entity reference of [id] on this table.
+ */
+fun <T : Any> IdTable<T>.getReference(id: T): EntityID<T> =
+    EntityID(id, this)
 
 /**
  * Base repository providing the entity upsert helpers shared by every repository shape.
@@ -16,6 +31,17 @@ import org.jetbrains.exposed.v1.dao.EntityClass
 abstract class UpsertRepository<T : Any, ENTITY : Entity<T>>(
     protected val entityClass: EntityClass<T, ENTITY>
 ) {
+    /**
+     * Builds the entity reference of [id] for this repository table.
+     *
+     * Use it to assign foreign keys to this repository's entity without querying the database.
+     *
+     * @param id identifier of the referenced entity.
+     * @return the typed entity reference of [id].
+     */
+    fun getReference(id: T): EntityID<T> =
+        EntityID(id, entityClass.table)
+
     /**
      * Applies [block] when the nullable entity exists and returns the same entity.
      *
