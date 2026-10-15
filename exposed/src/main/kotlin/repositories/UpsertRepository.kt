@@ -1,18 +1,21 @@
 package fr.shikkanime.exposed.repositories
 
-import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.dao.Entity
 import org.jetbrains.exposed.v1.dao.EntityClass
-import org.jetbrains.exposed.v1.jdbc.SizedIterable
 
 /**
- * Base repository providing common operations for Exposed DAO entities.
+ * Base repository providing the entity upsert helpers shared by every repository shape.
+ *
+ * Concrete repositories chain these helpers to persist rows: look the entity up, then apply
+ * [ifExists] to refresh it, [newIfNotExists] to create it, and [applyFlush] to write it.
  *
  * @param T type of the entity identifier.
  * @param ENTITY type of entity managed by this repository.
  * @property entityClass Exposed DAO class used to create and query entities.
  */
-abstract class AbstractRepository<T : Any, ENTITY : Entity<T>>(protected val entityClass: EntityClass<T, ENTITY>) {
+abstract class UpsertRepository<T : Any, ENTITY : Entity<T>>(
+    protected val entityClass: EntityClass<T, ENTITY>
+) {
     /**
      * Applies [block] when the nullable entity exists and returns the same entity.
      *
@@ -41,22 +44,4 @@ abstract class AbstractRepository<T : Any, ENTITY : Entity<T>>(protected val ent
      */
     protected fun ENTITY.applyFlush(): ENTITY =
         this.apply { flush() }
-
-    /**
-     * Finds every entity whose identifier belongs to [ids].
-     *
-     * @param ids identifiers to search for.
-     * @return a lazily evaluated Exposed entity sequence containing matching entities.
-     */
-    fun findAllByIds(ids: List<T>): SizedIterable<ENTITY> =
-        entityClass.find { entityClass.table.id inList ids }
-
-    /**
-     * Finds an entity by its identifier.
-     *
-     * @param id identifier to search for.
-     * @return the matching entity, or `null` when it does not exist.
-     */
-    fun findById(id: T): ENTITY? =
-        entityClass.findById(id)
 }

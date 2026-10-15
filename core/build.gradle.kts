@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    api(libs.kotlinxDateTime)
+
     testImplementation(kotlin("test"))
     testImplementation(libs.bundles.testEcosystem)
 }

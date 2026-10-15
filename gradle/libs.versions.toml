@@ -10,6 +10,7 @@ swaggerCodeGenerators = "1.0.62"
 valkeyGlide = "2.5.3"
 kotlinxSerialization = "1.11.0"
 kotlinxCoroutines = "1.11.0"
+kotlinxDateTime = "0.8.0"
 junitJupiter = "6.1.3"
 mockk = "1.14.11"
 koin = "4.2.2"
@@ -49,6 +50,7 @@ kotlinxSerializationProtobuf = { module = "org.jetbrains.kotlinx:kotlinx-seriali
 kotlinxSerializationCbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "kotlinxSerialization" }
 valkeyGlide = { module = "io.valkey:valkey-glide", version.ref = "valkeyGlide" }
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinxDateTime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDateTime" }
 koinBom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
 koinCore = { module = "io.insert-koin:koin-core" }
 koinAnnotations = { module = "io.insert-koin:koin-annotations" }
