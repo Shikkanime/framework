@@ -19,10 +19,11 @@ Operations modifying state or executing Exposed queries must run within a transa
 - Annotation-based transactions: Mark methods with `@Transactional` and wrap interface implementations using `TransactionalProxy(target, interfaceClass).create()`. This resolves the `DatabaseWrapper` registered for the current database by `DatabaseWrapper.connect()` and fails if none is available.
 - Explicit database wrapper: Use `TransactionalProxy(databaseWrapper, target, interfaceClass).create()` when the proxy must target a specific wrapper.
 
-## 3. AbstractRepository & Upsert DSL
+## 3. EntityRepository & Upsert DSL
 
-All Exposed repositories should inherit from `AbstractRepository<ID, ENTITY>`.
-It provides standard `findAll`, `findById`, `findAllByIds`, and a fluent upsert DSL:
+All Exposed repositories should inherit from `EntityRepository<ID, ENTITY>` (entity reads).
+It extends `UpsertRepository` (upsert DSL) and provides standard `findAll`, `findById`,
+`findAllByIds`, and a fluent upsert DSL:
 
 ```kotlin
 override fun persist(id: Int?, data: String): MyEntity {

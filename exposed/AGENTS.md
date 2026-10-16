@@ -3,7 +3,7 @@
 This file contains specific rules for the `exposed` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `exposed` module handles database persistence, connection pooling (`HikariCP`), schema migrations (`Liquibase`), Exposed ORM integration, transaction management (`@Transactional` & `TransactionalProxy`), and repository base classes (`AbstractRepository`).
+The `exposed` module handles database persistence, connection pooling (`HikariCP`), schema migrations (`Liquibase`), Exposed ORM integration, transaction management (`@Transactional` & `TransactionalProxy`), and repository base classes (`EntityRepository`).
 
 ## Submodule-Specific Rules
 
@@ -19,8 +19,9 @@ The `exposed` module handles database persistence, connection pooling (`HikariCP
    - `TransactionalProxy` creates JDK dynamic proxies intercepting methods annotated with `@Transactional` (on interface or implementation).
    - Ensure proxied target instances implement explicit interfaces.
 
-4. **AbstractRepository & Upsert DSL**:
-   - Repositories managing Exposed DAO entities must extend `AbstractRepository<T, ENTITY>`.
+4. **EntityRepository & Upsert DSL**:
+   - The upsert DSL itself lives in `UpsertRepository`, which `EntityRepository` extends.
+   - Repositories managing Exposed DAO entities must extend `EntityRepository<T, ENTITY>`.
    - Always use the upsert DSL (`ifExists`, `newIfNotExists`, `applyFlush`) for entity persistence and updates:
      ```kotlin
      findById(id)
