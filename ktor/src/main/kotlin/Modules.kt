@@ -23,6 +23,7 @@ import kotlinx.serialization.modules.SerializersModule
  * returning `OK` is bound automatically so every consumer exposes the same UP endpoint.
  */
 fun Application.configureDefaultModules(vararg extraModules: SerializersModule = emptyArray()) {
+    install(ResponseSizeRecorder)
     configureContentNegotiation(*extraModules)
     configureCORS()
     routing {

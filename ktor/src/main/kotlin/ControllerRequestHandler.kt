@@ -5,6 +5,8 @@ import fr.shikkanime.ktor.dtos.MessageDto
 import fr.shikkanime.validator.Validator
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.http.*
+import io.ktor.server.request.*
+import io.ktor.util.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.lang.reflect.InvocationTargetException
@@ -44,7 +46,6 @@ internal object ControllerRequestHandler {
     ): suspend RoutingContext.() -> Unit = {
         logger.info("Start - ${controllerClass.simpleName}.${function.name}")
         val start = System.nanoTime()
-
         try {
             // Argument resolution belongs to the guarded part: a malformed parameter is a client
             // error and must reach the refusal below, not escape to a 500.
@@ -77,8 +78,7 @@ internal object ControllerRequestHandler {
         }
 
         val durationMs = (System.nanoTime() - start) / MILLIS_IN_NANOSECONDS
-        val contentLength = call.response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
-        val sizeLog = contentLength?.let(::formatBytes) ?: "NaN"
+        val sizeLog = call.attributes.getOrNull(ResponseSizeAttribute)?.let(::formatBytes) ?: "NaN"
 
         logger.info("End - ${controllerClass.simpleName}.${function.name} (${"%.2f ms".format(durationMs)}; $sizeLog)")
     }
