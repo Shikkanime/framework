@@ -30,6 +30,11 @@ class ControllerArgumentResolverTest {
             @QueryParam("optional", required = false) optional: String?
         ): ResponseEntity<String> =
             ResponseEntity.ok("ok")
+
+        fun optionalEndpoint(
+            @QueryParam("id", required = false) id: Uuid?
+        ): ResponseEntity<String> =
+            ResponseEntity.ok(id?.toString() ?: "none")
     }
 
     @Nested
@@ -100,6 +105,22 @@ class ControllerArgumentResolverTest {
 
             // Then
             assertTrue(exception.message.contains("must be a valid"))
+        }
+
+        @Test
+        suspend fun `should resolve an optional parameter to null when its value does not match its type`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["id"] } returns "not-a-uuid"
+
+            val controller = SampleController()
+            val function = SampleController::optionalEndpoint
+
+            // When
+            val args = ControllerArgumentResolver.resolve(call, function, controller)
+
+            // Then
+            assertTrue(args.values.contains(null))
         }
     }
 }
