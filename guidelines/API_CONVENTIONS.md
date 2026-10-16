@@ -24,6 +24,11 @@ class UserController {
 - Use `@PathParam("name")` for route path segments.
 - Use `@RequestBody` for JSON payload deserialization.
 - Add `@Valid` on parameters to automatically validate the deserialized object via `Validator.validate(...)`.
+- Type a parameter with its real domain type, never with `String` to re-parse it:
+  `@PathParam("id") id: Uuid`.
+- A non-nullable parameter whose value does not match its type is refused with an HTTP 400 carrying
+  a `MessageDto` error (`InvalidParameterException`). A nullable parameter is optional by nature: an
+  absent or unconvertible value resolves to `null` and never refuses the request.
 
 ## 3. Standardized Response Payloads
 

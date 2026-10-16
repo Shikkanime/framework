@@ -22,7 +22,7 @@ Operations modifying state or executing Exposed queries must run within a transa
 ## 3. AbstractRepository & Upsert DSL
 
 All Exposed repositories should inherit from `AbstractRepository<ID, ENTITY>`.
-It provides standard `findById`, `findAllByIds`, and a fluent upsert DSL:
+It provides standard `findAll`, `findById`, `findAllByIds`, and a fluent upsert DSL:
 
 ```kotlin
 override fun persist(id: Int?, data: String): MyEntity {
