@@ -116,7 +116,14 @@ not a failed execution, and a caller branching on the status code must tell the 
 
 Never surface an internal exception message to a client.
 
-## 6. Out of Scope for This Module
+## 6. Identifiers — `UUID` scalar
+
+graphql-kotlin has no built-in scalar for `kotlin.uuid.Uuid`. `uuidScalar` (with `UuidCoercing`)
+exposes it as a `UUID` scalar and `UuidSchemaGeneratorHooks` registers it for every `Uuid` the schema
+meets, so a DTO shared with REST carries its identifiers as `Uuid` and never as a string duplicate.
+The scalar speaks the canonical hyphenated hexadecimal form in both directions.
+
+## 7. Out of Scope for This Module
 
 - Websocket subscriptions: the artifact ships `getSubscriptionServer()`, but the route does not
   advertise subscriptions, and `schemaSubscriptions` should stay empty unless that changes.

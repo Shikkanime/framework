@@ -15,6 +15,32 @@ import kotlin.uuid.Uuid
  */
 internal object ControllerArgumentResolver {
     /**
+     * Converts a textual parameter to the type of [kParameter], refusing a required parameter whose
+     * value does not match its type.
+     *
+     * A nullable parameter is optional by nature: an unconvertible value resolves to `null`, exactly
+     * like an absent value, so an optional parameter never refuses the request. A non-nullable
+     * parameter is required: an unconvertible value is a client error.
+     *
+     * @param kParameter controller function parameter being resolved.
+     * @param name HTTP name of the parameter, used in the refusal message.
+     * @param stringValue raw parameter value.
+     * @return the converted value, or `null` for a nullable parameter with no convertible value.
+     * @throws InvalidParameterException when a non-nullable parameter value fails its conversion.
+     */
+    private fun parseParameter(kParameter: KParameter, name: String, stringValue: String): Any? {
+        val kClass = kParameter.type.classifier as? KClass<*>
+        val parsed = parseValue(kClass, stringValue)
+
+        if (!kParameter.type.isMarkedNullable && parsed == null)
+            throw InvalidParameterException(
+                "Parameter '$name' must be a valid ${kClass?.simpleName ?: "value"}"
+            )
+
+        return parsed
+    }
+
+    /**
      * Converts a textual HTTP parameter to the type expected by a controller function.
      *
      * Supported conversions are strings, integers, longs, doubles, strict booleans, enum constants,
@@ -69,15 +95,11 @@ internal object ControllerArgumentResolver {
                 val stringValue = call.request.queryParameters[queryParamAnnotation.name]
 
                 if (stringValue != null) {
-                    val kClass = kParameter.type.classifier as? KClass<*>
-                    val parsed = parseValue(kClass, stringValue)
-
-                    if (!kParameter.type.isMarkedNullable && parsed == null)
-                        throw InvalidParameterException(
-                            "Parameter '${queryParamAnnotation.name}' must be a valid ${kClass?.simpleName ?: "value"}"
-                        )
-
-                    args[kParameter] = parsed
+                    args[kParameter] = parseParameter(
+                        kParameter,
+                        queryParamAnnotation.name,
+                        stringValue
+                    )
                 } else if (!queryParamAnnotation.required && kParameter.type.isMarkedNullable) {
                     args[kParameter] = null
                 }
@@ -88,15 +110,11 @@ internal object ControllerArgumentResolver {
                 val stringValue = call.parameters[pathParamAnnotation.name]
 
                 if (stringValue != null) {
-                    val kClass = kParameter.type.classifier as? KClass<*>
-                    val parsed = parseValue(kClass, stringValue)
-
-                    if (!kParameter.type.isMarkedNullable && parsed == null)
-                        throw InvalidParameterException(
-                            "Parameter '${pathParamAnnotation.name}' must be a valid ${kClass?.simpleName ?: "value"}"
-                        )
-
-                    args[kParameter] = parsed
+                    args[kParameter] = parseParameter(
+                        kParameter,
+                        pathParamAnnotation.name,
+                        stringValue
+                    )
                 }
             }
 
