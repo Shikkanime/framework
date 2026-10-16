@@ -72,14 +72,12 @@ internal object ControllerArgumentResolver {
                     val kClass = kParameter.type.classifier as? KClass<*>
                     val parsed = parseValue(kClass, stringValue)
 
-                    args[kParameter] = if (parsed != null)
-                        parsed
-                    else if (kParameter.type.isMarkedNullable)
-                        null
-                    else
+                    if (!kParameter.type.isMarkedNullable && parsed == null)
                         throw InvalidParameterException(
                             "Parameter '${queryParamAnnotation.name}' must be a valid ${kClass?.simpleName ?: "value"}"
                         )
+
+                    args[kParameter] = parsed
                 } else if (!queryParamAnnotation.required && kParameter.type.isMarkedNullable) {
                     args[kParameter] = null
                 }
@@ -93,14 +91,12 @@ internal object ControllerArgumentResolver {
                     val kClass = kParameter.type.classifier as? KClass<*>
                     val parsed = parseValue(kClass, stringValue)
 
-                    args[kParameter] = if (parsed != null)
-                        parsed
-                    else if (kParameter.type.isMarkedNullable)
-                        null
-                    else
+                    if (!kParameter.type.isMarkedNullable && parsed == null)
                         throw InvalidParameterException(
                             "Parameter '${pathParamAnnotation.name}' must be a valid ${kClass?.simpleName ?: "value"}"
                         )
+
+                    args[kParameter] = parsed
                 }
             }
 

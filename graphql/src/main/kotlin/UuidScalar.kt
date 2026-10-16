@@ -23,7 +23,7 @@ import kotlin.uuid.Uuid
  * a [Uuid] identifier would otherwise fail schema generation and force a duplicated DTO typed on
  * strings. The scalar speaks the canonical hyphenated hexadecimal form in both directions.
  */
-val UuidScalar: GraphQLScalarType =
+val uuidScalar: GraphQLScalarType =
     GraphQLScalarType.newScalar()
         .name("UUID")
         .description("kotlin.uuid.Uuid rendered as its hyphenated hexadecimal string")
@@ -31,7 +31,7 @@ val UuidScalar: GraphQLScalarType =
         .build()
 
 /**
- * Reads and writes [Uuid] values for [UuidScalar].
+ * Reads and writes [Uuid] values for [uuidScalar].
  *
  * Every direction funnels through `Uuid.parseOrNull` and `Uuid.toString`, so the schema, the
  * variables and the serialized response all agree on the same textual form.
@@ -99,7 +99,7 @@ class UuidCoercing : Coercing<Uuid, String> {
 }
 
 /**
- * Schema hooks exposing [UuidScalar] for every [Uuid] the schema meets.
+ * Schema hooks exposing [uuidScalar] for every [Uuid] the schema meets.
  *
  * Every other hook keeps the framework default ([FlowSubscriptionSchemaGeneratorHooks]): the
  * scalar is a widening of the generator, not a replacement of its behaviour.
@@ -111,11 +111,11 @@ class UuidSchemaGeneratorHooks(
      * Resolves the GraphQL type of a Kotlin type.
      *
      * @param type Kotlin type the generator is building a schema type for.
-     * @return [UuidScalar] when [type] is a [Uuid], the delegate answer otherwise.
+     * @return [uuidScalar] when [type] is a [Uuid], the delegate answer otherwise.
      */
     override fun willGenerateGraphQLType(type: KType): GraphQLType? =
         if (type.classifier == Uuid::class)
-            UuidScalar
+            uuidScalar
         else
             delegate.willGenerateGraphQLType(type)
 }
