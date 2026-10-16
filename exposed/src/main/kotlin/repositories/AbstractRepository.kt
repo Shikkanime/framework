@@ -43,6 +43,14 @@ abstract class AbstractRepository<T : Any, ENTITY : Entity<T>>(protected val ent
         this.apply { flush() }
 
     /**
+     * Finds every entity of the table.
+     *
+     * @return a lazily evaluated Exposed entity sequence containing every entity.
+     */
+    fun findAll(): SizedIterable<ENTITY> =
+        entityClass.all()
+
+    /**
      * Finds every entity whose identifier belongs to [ids].
      *
      * @param ids identifiers to search for.
