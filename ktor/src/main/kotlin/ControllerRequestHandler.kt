@@ -44,9 +44,12 @@ internal object ControllerRequestHandler {
     ): suspend RoutingContext.() -> Unit = {
         logger.info("Start - ${controllerClass.simpleName}.${function.name}")
         val start = System.nanoTime()
-        val args = ControllerArgumentResolver.resolve(call, function, instance)
 
         try {
+            // Argument resolution belongs to the guarded part: a malformed parameter is a client
+            // error and must reach the refusal below, not escape to a 500.
+            val args = ControllerArgumentResolver.resolve(call, function, instance)
+
             args.filter { (kParameter, value) -> kParameter.hasAnnotation<Valid>() && value != null }
                 .forEach { (_, value) -> Validator.validate(value!!) }
 

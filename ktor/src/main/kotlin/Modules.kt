@@ -12,6 +12,8 @@ import io.ktor.server.plugins.swagger.*
 import io.ktor.server.routing.*
 import io.ktor.server.routing.openapi.*
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
 
 /**
  * Configures the default content negotiation and CORS modules, and registers the built-in [HealthController].
@@ -20,8 +22,8 @@ import kotlinx.serialization.ExperimentalSerializationApi
  * while CORS accepts requests from any host using Ktor's default HTTP methods. A `GET /health` route
  * returning `OK` is bound automatically so every consumer exposes the same UP endpoint.
  */
-fun Application.configureDefaultModules() {
-    configureContentNegotiation()
+fun Application.configureDefaultModules(vararg extraModules: SerializersModule = emptyArray()) {
+    configureContentNegotiation(*extraModules)
     configureCORS()
     routing {
         ControllerBinder.register(this, listOf(HealthController()))
@@ -30,11 +32,23 @@ fun Application.configureDefaultModules() {
 
 /**
  * Configures Content Negotiation on the server using [defaultJson], [defaultProtoBuf], and [defaultCbor].
+ *
+ * @param extraModules kotlinx serialization modules merged into the JSON converter, one per wire
+ * type the framework cannot annotate itself (the GraphQL request types, for example).
  */
 @OptIn(ExperimentalSerializationApi::class)
-internal fun Application.configureContentNegotiation() {
+internal fun Application.configureContentNegotiation(vararg extraModules: SerializersModule = emptyArray()) {
     install(ContentNegotiation) {
-        json(defaultJson)
+        json(
+            if (extraModules.isEmpty()) defaultJson else Json(defaultJson) {
+                serializersModule = extraModules.fold(defaultJson.serializersModule) { acc, module ->
+                    SerializersModule {
+                        include(acc)
+                        include(module)
+                    }
+                }
+            }
+        )
         protobuf(defaultProtoBuf)
         cbor(defaultCbor)
     }
