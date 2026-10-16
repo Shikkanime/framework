@@ -55,6 +55,18 @@ tasks.withType<Test>().configureEach {
     // Configure all test Gradle tasks to use JUnitPlatform.
     useJUnitPlatform()
 
+    // The build host has 3.7 GiB of RAM and runs the Gradle daemon, the Kotlin daemon and this
+    // fork at the same time. Without a cap on the fork, the three JVMs together exhaust memory and
+    // the kernel kills the build. 640 MiB holds a test JVM for this project comfortably; the fork
+    // also runs with a serial collector, which costs a little throughput and saves a lot of heap.
+    maxHeapSize = "640m"
+    jvmArgs("-XX:MaxMetaspaceSize=256m", "-XX:+UseSerialGC")
+
+    // One fork at a time: parallel forks multiply the memory cost by the fork count, and the
+    // suite is small enough that the wall-clock saving is not worth an OOM kill.
+    maxParallelForks = 1
+    forkEvery = 0
+
     // Log information about all test results, not only the failed ones.
     testLogging {
         events(

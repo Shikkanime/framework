@@ -22,8 +22,8 @@ Operations modifying state or executing Exposed queries must run within a transa
 ## 3. EntityRepository & Upsert DSL
 
 All Exposed repositories should inherit from `EntityRepository<ID, ENTITY>` (entity reads).
-It extends `UpsertRepository` (upsert DSL) and provides standard `findById`, `findAllByIds`, and a
-fluent upsert DSL:
+It extends `UpsertRepository` (upsert DSL) and provides standard `findAll`, `findById`,
+`findAllByIds`, and a fluent upsert DSL:
 
 ```kotlin
 override fun persist(id: Int?, data: String): MyEntity {

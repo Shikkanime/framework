@@ -65,6 +65,9 @@ internal object ControllerRequestHandler {
                 is ObjectNotValidException ->
                     call.respond(HttpStatusCode.BadRequest, MessageDto.error(cause.message))
 
+                is InvalidParameterException ->
+                    call.respond(HttpStatusCode.BadRequest, MessageDto.error(cause.message))
+
                 else ->
                     call.respond(HttpStatusCode.InternalServerError, MessageDto.error("An unexpected error occurred"))
             }

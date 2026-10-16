@@ -57,3 +57,4 @@ abstract class UpsertRepository<T : Any, ENTITY : Entity<T>>(
     protected fun ENTITY.applyFlush(): ENTITY =
         this.apply { flush() }
 }
+

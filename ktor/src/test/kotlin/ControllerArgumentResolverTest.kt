@@ -30,6 +30,11 @@ class ControllerArgumentResolverTest {
             @QueryParam("optional", required = false) optional: String?
         ): ResponseEntity<String> =
             ResponseEntity.ok("ok")
+
+        fun optionalEndpoint(
+            @QueryParam("id", required = false) id: Uuid?
+        ): ResponseEntity<String> =
+            ResponseEntity.ok(id?.toString() ?: "none")
     }
 
     @Nested
@@ -84,7 +89,7 @@ class ControllerArgumentResolverTest {
         }
 
         @Test
-        suspend fun `should return null when numeric or boolean conversions fail`() {
+        suspend fun `should refuse the request when a numeric or boolean conversion fails`() {
             // Given
             val call = mockk<ApplicationCall>(relaxed = true)
             every { call.request.queryParameters["longVal"] } returns "invalid_number"
@@ -92,6 +97,24 @@ class ControllerArgumentResolverTest {
 
             val controller = SampleController()
             val function = SampleController::typeEndpoint
+
+            // When
+            val exception = org.junit.jupiter.api.assertThrows<InvalidParameterException> {
+                ControllerArgumentResolver.resolve(call, function, controller)
+            }
+
+            // Then
+            assertTrue(exception.message.contains("must be a valid"))
+        }
+
+        @Test
+        suspend fun `should resolve an optional parameter to null when its value does not match its type`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["id"] } returns "not-a-uuid"
+
+            val controller = SampleController()
+            val function = SampleController::optionalEndpoint
 
             // When
             val args = ControllerArgumentResolver.resolve(call, function, controller)
