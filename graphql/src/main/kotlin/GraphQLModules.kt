@@ -109,6 +109,7 @@ fun Application.configureGraphQL(
             queries = schemaQueries
             mutations = schemaMutations
             subscriptions = schemaSubscriptions
+            hooks = UuidSchemaGeneratorHooks()
         }
 
         engine {
