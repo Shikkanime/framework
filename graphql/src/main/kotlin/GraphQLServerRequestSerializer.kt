@@ -23,11 +23,96 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 
 /**
- * Serialization module carrying [GraphQLServerRequest].
+ * Converts a JSON object to a plain value map, ready for the GraphQL execution engine.
  *
- * graphql-kotlin ships this type with Jackson and FastJson deserializers only, so a kotlinx
- * ContentNegotiation cannot read a GraphQL body at all: every request dies with
- * "Cannot transform this request's content". Registering this module in the application JSON
+ * @receiver the JSON object to convert.
+ * @return the same entries with plain Kotlin values.
+ */
+private fun JsonObject.toValueMap(): Map<String, Any?> =
+    entries.associate { (key, value) -> key to value.toValue() }
+
+/**
+ * Converts a JSON element to a plain Kotlin value.
+ *
+ * @receiver the JSON element to convert.
+ * @return `null` for JSON null, the content for a primitive, and a recursive plain value for
+ * objects and arrays.
+ */
+private fun JsonElement.toValue(): Any? =
+    when (this) {
+        is JsonNull -> null
+        is JsonPrimitive -> if (isString) contentOrNull else booleanOrNull ?: contentOrNull
+        is JsonObject -> toValueMap()
+        is JsonArray -> map(JsonElement::toValue)
+    }
+
+/**
+ * Converts one request object from its JSON form.
+ *
+ * @receiver the JSON object of a single GraphQL request.
+ * @return the parsed request.
+ * @throws SerializationException when the `query` field is missing.
+ */
+private fun JsonObject.toRequest(): GraphQLRequest {
+    val query = this["query"]?.jsonPrimitive?.contentOrNull
+        ?: throw SerializationException("A GraphQL request requires a 'query' field")
+
+    return GraphQLRequest(
+        query = query,
+        variables = (this["variables"] as? JsonObject)?.toValueMap(),
+        operationName = this["operationName"]?.jsonPrimitive?.contentOrNull,
+        extensions = (this["extensions"] as? JsonObject)?.toValueMap()
+    )
+}
+
+/**
+ * Converts one request to its JSON object form.
+ *
+ * @receiver the request to write.
+ * @return the JSON object understood by the GraphQL endpoint.
+ */
+private fun GraphQLRequest.toElement(): JsonObject =
+    JsonObject(
+        buildMap {
+            put("query", JsonPrimitive(query))
+            variables?.let { put("variables", it.toValueElement()) }
+            operationName?.let { put("operationName", JsonPrimitive(it)) }
+            extensions?.let { put("extensions", it.toValueElement()) }
+        }
+    )
+
+/**
+ * Converts a plain value map back to its JSON object form.
+ *
+ * @receiver the values to write.
+ * @return the JSON object carrying them.
+ */
+private fun Map<String, Any?>.toValueElement(): JsonObject =
+    JsonObject(mapValues { (_, value) -> value.toElementValue() })
+
+/**
+ * Converts a plain Kotlin value back to its JSON element form.
+ *
+ * @receiver the value to write, `null` included.
+ * @return the JSON element carrying it.
+ */
+private fun Any?.toElementValue(): JsonElement =
+    when (this) {
+        null -> JsonNull
+        is String -> JsonPrimitive(this)
+        is Boolean -> JsonPrimitive(this)
+        is Number -> JsonPrimitive(this)
+        is Map<*, *> -> JsonObject(this.entries.associate { (k, v) -> k.toString() to v.toElementValue() })
+        is List<*> -> JsonArray(this.map(Any?::toElementValue))
+        else -> JsonPrimitive(this.toString())
+    }
+
+/**
+ * Serialization module carrying [GraphQLServerRequest] and [GraphQLResponse].
+ *
+ * graphql-kotlin ships these types with Jackson and FastJson deserializers only, so a kotlinx
+ * ContentNegotiation can neither read a GraphQL body nor write its response: every request dies
+ * with "Cannot transform this request's content". Registering this module in the application JSON
  * (see `configureDefaultModules`) makes the GraphQL endpoint consumable like any other route.
  */
 val graphQLSerializersModule: SerializersModule =
@@ -66,37 +151,17 @@ object GraphQLServerRequestSerializer : KSerializer<GraphQLServerRequest> {
     /**
      * Writes the request back to its wire form.
      *
-     * @param encoder JSON encoder of the response body.
+     * @param encoder JSON encoder of the request body.
      * @param value request to write.
      */
     override fun serialize(encoder: Encoder, value: GraphQLServerRequest) {
         val element = when (value) {
-            is GraphQLBatchRequest -> JsonArray(value.requests.map { it.toElement() })
+            is GraphQLBatchRequest -> JsonArray(value.requests.map(GraphQLRequest::toElement))
             else -> (value as GraphQLRequest).toElement()
         }
 
         encoder.encodeSerializableValue(JsonElement.serializer(), element)
     }
-
-    /**
-     * Builds one request from its JSON object.
-     *
-     * @return the parsed request.
-     * @throws SerializationException when the `query` field is missing.
-     */
-    private fun JsonObject.toRequest(): GraphQLRequest {
-        val query = this["query"]?.jsonPrimitive?.contentOrNull
-            ?: throw SerializationException("A GraphQL request requires a 'query' field")
-
-        return GraphQLRequest(
-            query = query,
-            variables = (this["variables"] as? JsonObject)?.toValueMap(),
-            operationName = this["operationName"]?.jsonPrimitive?.contentOrNull,
-            extensions = (this["extensions"] as? JsonObject)?.toValueMap()
-        )
-    }
-
-
 }
 
 /**
@@ -106,41 +171,6 @@ object GraphQLServerRequestSerializer : KSerializer<GraphQLServerRequest> {
  * a serialization failure without this encoder. Only the encoding direction matters: the endpoint
  * never reads a response body.
  */
-private fun JsonObject.toValueMap(): Map<String, Any?> =
-    entries.associate { (key, value) -> key to value.toValue() }
-
-private fun JsonElement.toValue(): Any? =
-    when (this) {
-        is JsonNull -> null
-        is JsonPrimitive -> if (isString) contentOrNull else booleanOrNull ?: contentOrNull
-        is JsonObject -> toValueMap()
-        is JsonArray -> map { it.toValue() }
-    }
-
-private fun GraphQLRequest.toElement(): JsonObject =
-    JsonObject(
-        buildMap {
-            put("query", JsonPrimitive(query))
-            variables?.let { put("variables", it.toValueElement()) }
-            operationName?.let { put("operationName", JsonPrimitive(it)) }
-            extensions?.let { put("extensions", it.toValueElement()) }
-        }
-    )
-
-private fun Map<String, Any?>.toValueElement(): JsonObject =
-    JsonObject(mapValues { (_, value) -> value.toElementValue() })
-
-private fun Any?.toElementValue(): JsonElement =
-    when (this) {
-        null -> JsonNull
-        is String -> JsonPrimitive(this)
-        is Boolean -> JsonPrimitive(this)
-        is Number -> JsonPrimitive(this)
-        is Map<*, *> -> JsonObject(this.entries.associate { (k, v) -> k.toString() to v.toElementValue() })
-        is List<*> -> JsonArray(this.map { it.toElementValue() })
-        else -> JsonPrimitive(this.toString())
-    }
-
 object GraphQLResponseSerializer : KSerializer<GraphQLResponse<*>> {
     override val descriptor: SerialDescriptor =
         buildClassSerialDescriptor("GraphQLResponse")
@@ -165,7 +195,10 @@ object GraphQLResponseSerializer : KSerializer<GraphQLResponse<*>> {
     }
 
     /**
-     * Converts a response to its JSON object.
+     * Converts a response to its JSON object form.
+     *
+     * @receiver the response to write.
+     * @return the JSON object carrying `data`, `errors` and `extensions`.
      */
     private fun GraphQLResponse<*>.toElement(): JsonObject =
         JsonObject(
@@ -179,8 +212,10 @@ object GraphQLResponseSerializer : KSerializer<GraphQLResponse<*>> {
                                 JsonObject(
                                     buildMap {
                                         put("message", JsonPrimitive(error.message))
-                                        error.path?.let { put("path", JsonArray(it.map { step -> JsonPrimitive(step.toString()) })) }
-                                        error.extensions?.let { put("extensions", it.toValueElement()) }
+                                        error.path?.let { path ->
+                                            put("path", JsonArray(path.map { step -> JsonPrimitive(step.toString()) }))
+                                        }
+                                        error.extensions?.let { put("extensions", it.toElementValue()) }
                                     }
                                 )
                             }
