@@ -9,6 +9,8 @@
   `UuidScalar`, which would name a type.
 - **Refuse first, then assign**: a guard `if (invalid) throw ...` at the top of the block followed by
   the plain assignment, never the refusal nested inside a conditional expression.
+- **Duplicated logic becomes a named helper** (KDoc'd, one call site shape) even when the duplicated
+  block predates your change: the review covers the code around your edit, not only your lines.
 
 ```kotlin
 fun getLogger(clazz: Class<*>): Logger =

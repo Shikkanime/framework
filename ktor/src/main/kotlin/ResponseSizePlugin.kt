@@ -1,7 +1,11 @@
 package fr.shikkanime.ktor
 
-import io.ktor.http.HttpHeaders
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
 import io.ktor.http.content.OutgoingContent
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
+import java.io.InputStream
 import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.hooks.ResponseBodyReadyForSend
@@ -27,14 +31,31 @@ val ResponseSizeAttribute: AttributeKey<Long> = AttributeKey("ResponseSize")
  */
 val ResponseSizeRecorder: ApplicationPlugin<Unit> =
     createApplicationPlugin(name = "ResponseSizeRecorder") {
-        on(ResponseBodyReadyForSend) { _, call, content ->
-            call.attributes.put(
-                ResponseSizeAttribute,
-                when (content) {
-                    is OutgoingContent.ByteArrayContent -> content.bytes().size.toLong()
-                    is OutgoingContent.NoContent -> 0L
-                    else -> content.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0L
-                }
-            )
+        on(ResponseBodyReadyForSend) { context, call, content ->
+            val bytes: ByteArray? = when (content) {
+                is OutgoingContent.ByteArrayContent -> content.bytes()
+                is OutgoingContent.NoContent -> ByteArray(0)
+                else -> null
+            }
+
+            if (bytes != null) {
+                call.attributes.put(ResponseSizeAttribute, bytes.size.toLong())
+            } else {
+                // A streamed payload carries no size anywhere: materialize it once, measure it,
+                // and send the very same bytes.
+                val materialized = (content as OutgoingContent.ReadChannelContent)
+                    .readFrom()
+                    .readRemaining()
+                    .readByteArray()
+
+                call.attributes.put(ResponseSizeAttribute, materialized.size.toLong())
+                context.transformBodyTo(
+                    object : OutgoingContent.ByteArrayContent() {
+                        override val contentType: ContentType? = content.contentType
+                        override val headers: Headers = content.headers
+                        override fun bytes(): ByteArray = materialized
+                    }
+                )
+            }
         }
     }

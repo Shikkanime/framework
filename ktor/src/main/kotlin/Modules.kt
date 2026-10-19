@@ -32,6 +32,26 @@ fun Application.configureDefaultModules(vararg extraModules: SerializersModule =
 }
 
 /**
+ * Builds the JSON converter of the content negotiation, with [extraModules] merged in.
+ *
+ * @param extraModules kotlinx serialization modules, one per wire type the framework cannot
+ * annotate itself (the GraphQL request types, for example).
+ * @return the JSON format every JSON route serializes with.
+ */
+private fun buildJsonConverter(extraModules: Array<out SerializersModule>): Json =
+    if (extraModules.isEmpty())
+        defaultJson
+    else
+        Json(defaultJson) {
+            serializersModule = extraModules.fold(defaultJson.serializersModule) { acc, module ->
+                SerializersModule {
+                    include(acc)
+                    include(module)
+                }
+            }
+        }
+
+/**
  * Configures Content Negotiation on the server using [defaultJson], [defaultProtoBuf], and [defaultCbor].
  *
  * @param extraModules kotlinx serialization modules merged into the JSON converter, one per wire
@@ -40,16 +60,13 @@ fun Application.configureDefaultModules(vararg extraModules: SerializersModule =
 @OptIn(ExperimentalSerializationApi::class)
 internal fun Application.configureContentNegotiation(vararg extraModules: SerializersModule = emptyArray()) {
     install(ContentNegotiation) {
-        json(
-            if (extraModules.isEmpty()) defaultJson else Json(defaultJson) {
-                serializersModule = extraModules.fold(defaultJson.serializersModule) { acc, module ->
-                    SerializersModule {
-                        include(acc)
-                        include(module)
-                    }
-                }
-            }
-        )
+        // Both registrations are needed, and testing removed each one to prove it:
+        // - Application.Json answers the Accept-based response negotiation (a lone Any answers
+        //   406 Not Acceptable instead);
+        // - Any parses a request body sent as text/plain, octet-stream, or with no Content-Type,
+        //   which is how GraphQL clients and .http files post their query.
+        json(buildJsonConverter(extraModules))
+        json(buildJsonConverter(extraModules), ContentType.Any)
         protobuf(defaultProtoBuf)
         cbor(defaultCbor)
     }
