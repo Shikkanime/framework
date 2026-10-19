@@ -50,6 +50,19 @@ internal fun Application.configureContentNegotiation(vararg extraModules: Serial
                 }
             }
         )
+        // GraphQL clients send the body as text/plain, octet-stream, or with no Content-Type at
+        // all: the JSON converter is the fallback for whatever the request announces.
+        json(
+            if (extraModules.isEmpty()) defaultJson else Json(defaultJson) {
+                serializersModule = extraModules.fold(defaultJson.serializersModule) { acc, module ->
+                    SerializersModule {
+                        include(acc)
+                        include(module)
+                    }
+                }
+            },
+            ContentType.Any
+        )
         protobuf(defaultProtoBuf)
         cbor(defaultCbor)
     }
