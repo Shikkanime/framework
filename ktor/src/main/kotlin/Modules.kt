@@ -60,9 +60,12 @@ private fun buildJsonConverter(extraModules: Array<out SerializersModule>): Json
 @OptIn(ExperimentalSerializationApi::class)
 internal fun Application.configureContentNegotiation(vararg extraModules: SerializersModule = emptyArray()) {
     install(ContentNegotiation) {
+        // Both registrations are needed, and testing removed each one to prove it:
+        // - Application.Json answers the Accept-based response negotiation (a lone Any answers
+        //   406 Not Acceptable instead);
+        // - Any parses a request body sent as text/plain, octet-stream, or with no Content-Type,
+        //   which is how GraphQL clients and .http files post their query.
         json(buildJsonConverter(extraModules))
-        // GraphQL clients send the body as text/plain, octet-stream, or with no Content-Type at
-        // all: the JSON converter is the fallback for whatever the request announces.
         json(buildJsonConverter(extraModules), ContentType.Any)
         protobuf(defaultProtoBuf)
         cbor(defaultCbor)
