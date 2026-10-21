@@ -10,7 +10,9 @@ The project is structured into distinct, decoupled framework modules. **Do not v
 
 - **Dependencies Flow:** `core` (standalone) <- `cache`, `exposed` & `validator` <- `ktor` ; `koin` (standalone dependency carrier) <- `koin-exposed` ; `ktor-test` (standalone dependency carrier) ; `plugin` (Gradle convention plugins)
 - **`core`**: Base logging (`LoggerFactory`), utilities. MUST remain zero-dependency relative to other submodules.
-- **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
+- **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client
+  (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, single-flight
+  loader deduplication (`SingleFlight`), and hit, miss and put statistics (`CacheStats`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`UpsertRepository`, `EntityRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
 - **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), a preconfigured HTTP client (`createHttpClient`), and the built-in `/health` UP endpoint auto-registered by `configureDefaultModules`.
@@ -48,7 +50,7 @@ Refer to the style, convention, and testing guides:
 
 Each framework module has its own dedicated `AGENTS.md` specifying module-specific constraints and responsibilities:
 - [`core/AGENTS.md`](core/AGENTS.md): Core utilities & custom logging system.
-- [`cache/AGENTS.md`](cache/AGENTS.md): Two-level caching facade, Valkey wrapper, CBOR codec, and single-flight deduplication.
+- [`cache/AGENTS.md`](cache/AGENTS.md): Two-level caching facade, Valkey wrapper, CBOR codec, single-flight deduplication, and cache statistics.
 - [`exposed/AGENTS.md`](exposed/AGENTS.md): Database wrappers, transaction management, Liquibase, and repository upsert DSL.
 - [`validator/AGENTS.md`](validator/AGENTS.md): Annotation-based reflection validator and custom constraints.
 - [`ktor/AGENTS.md`](ktor/AGENTS.md): Controller binding, HTTP argument resolution, response wrappers, and OpenAPI doc generation.

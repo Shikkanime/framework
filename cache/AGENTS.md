@@ -3,7 +3,10 @@
 This file contains specific rules for the `cache` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `cache` module provides a two-level caching engine combining an in-memory L1 LRU cache (`L1Cache`), a distributed L2 Valkey/Redis client wrapper (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
+The `cache` module provides a two-level caching engine combining an in-memory L1 LRU cache (`L1Cache`),
+a distributed L2 Valkey/Redis client wrapper (`ValkeyWrapper`), CBOR binary serialization
+(`BinaryCodec`), bucket versioning, single-flight loader deduplication (`SingleFlight`), and hit, miss
+and put statistics (`CacheStats`).
 
 ## Submodule-Specific Rules
 
@@ -27,3 +30,13 @@ The `cache` module provides a two-level caching engine combining an in-memory L1
 5. **Binary Codec & Serialization**:
    - Payload serialization uses `BinaryCodec` with Kotlinx Serialization CBOR format.
    - Version values are binary-encoded as 8-byte `Long` values using `ByteBuffer`.
+
+6. **Cache Statistics**:
+   - Lookup outcomes are recorded ONLY in `Cache.loadAndStore`: exactly one of `l1Hits`, `l2Hits`
+     or `misses` per deduplicated lookup. A caller coalesced by `SingleFlight` and a failed lookup
+     (lookup-phase transport or decode error) record nothing.
+   - `puts` counts one per item entry written into one level: populating L1 from an L2 hit counts
+     one put, a miss counts two puts (L1 write and Valkey write). Bucket-version bookkeeping writes
+     are never counted.
+   - Recording functions are `internal` to this module; the public surface of `CacheStats` is
+     read-only and cumulative (no reset API).
