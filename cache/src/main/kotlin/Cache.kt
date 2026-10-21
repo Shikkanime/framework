@@ -10,7 +10,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Integrates an in-memory L1 LRU cache ([L1Cache]) with a distributed L2 Valkey/Redis binary cache ([ValkeyWrapper]),
  * powered by CBOR binary encoding ([BinaryCodec]), bucket versioning for instant cache group invalidation,
- * and concurrent loader deduplication ([SingleFlight]).
+ * and concurrent loader deduplication ([SingleFlight]). Lookup outcomes and item writes are
+ * counted in [CacheStats].
  *
  * @param l1 In-memory Level 1 cache instance.
  * @param valkeyWrapper Distributed Level 2 Valkey client wrapper.
@@ -25,6 +26,13 @@ class Cache(
     private val singleFlight: SingleFlight = SingleFlight(),
     private val versionCacheTtl: Duration = 30.seconds
 ) {
+    /**
+     * Statistics counters recording lookup outcomes and item writes of this cache.
+     *
+     * @see CacheStats
+     */
+    val stats: CacheStats = CacheStats()
+
     /**
      * Generates the key used to look up or store the current version of a [bucket].
      *
@@ -64,7 +72,8 @@ class Cache(
 
     /**
      * Internal lookup routine that checks L1 memory, then Valkey L2, and executes [loader] on miss,
-     * saving the result in both L1 and Valkey L2.
+     * saving the result in both L1 and Valkey L2. Each step records its lookup outcome and item
+     * writes in [stats]: a coalesced caller records nothing, and a failed lookup records nothing.
      *
      * @param T The payload type.
      * @param fullKey Composite versioned key.
@@ -79,17 +88,25 @@ class Cache(
         loader: suspend () -> T,
         serializer: KSerializer<T>
     ): T {
-        l1.get(fullKey)?.let { return it as T }
+        l1.get(fullKey)?.let {
+            stats.recordL1Hit()
+            return it as T
+        }
 
         valkeyWrapper.get(fullKey)?.let {
             val value = codec.decode(it, serializer)
+            stats.recordL2Hit()
             l1.put(fullKey, value, ttl)
+            stats.recordPut()
             return value
         }
 
+        stats.recordMiss()
         val value = loader()
         l1.put(fullKey, value, ttl)
+        stats.recordPut()
         valkeyWrapper.set(fullKey, codec.encode(value, serializer), ttl)
+        stats.recordPut()
         return value
     }
 
