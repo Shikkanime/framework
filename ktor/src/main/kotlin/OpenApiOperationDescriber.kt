@@ -10,7 +10,7 @@ import kotlin.reflect.full.*
  * Adds annotation-based OpenAPI metadata for a controller function to this operation.
  *
  * Metadata is emitted only when [kFunction] has [Operation]. Parameter schemas
- * come from [QueryParam] and [PathParam], the body schema comes from [RequestBody], and response
+ * come from [QueryParam], [PathParam] and [HttpHeader], the body schema comes from [RequestBody], and response
  * schemas come from [ApiResponse] or [ApiResponses].
  *
  * @param kFunction controller function whose annotations describe the operation.
@@ -40,6 +40,15 @@ internal fun OpenApiOperation.Builder.describeOperation(kFunction: KFunction<*>)
                     path(pathParam.name) {
                         required = true
                         schema = buildSchema(kParameter.type.withNullability(!pathParam.required))
+                    }
+                }
+
+                kParameter.hasAnnotation<HttpHeader>() -> {
+                    val header = kParameter.findAnnotation<HttpHeader>()!!
+
+                    header(header.name) {
+                        required = header.required
+                        schema = buildSchema(kParameter.type.withNullability(!header.required))
                     }
                 }
             }
