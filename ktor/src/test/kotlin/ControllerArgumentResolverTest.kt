@@ -3,10 +3,12 @@ package fr.shikkanime.ktor
 import io.ktor.server.application.ApplicationCall
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import kotlin.uuid.Uuid
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
@@ -35,6 +37,12 @@ class ControllerArgumentResolverTest {
             @QueryParam("id", required = false) id: Uuid?
         ): ResponseEntity<String> =
             ResponseEntity.ok(id?.toString() ?: "none")
+
+        fun headerEndpoint(
+            @HttpHeader("If-None-Match") ifNoneMatch: String,
+            @HttpHeader("If-Modified-Since", required = false) lastModified: String?
+        ): ResponseEntity<String> =
+            ResponseEntity.ok("$ifNoneMatch / ${lastModified ?: "none"}")
     }
 
     @Nested
@@ -99,7 +107,7 @@ class ControllerArgumentResolverTest {
             val function = SampleController::typeEndpoint
 
             // When
-            val exception = org.junit.jupiter.api.assertThrows<InvalidParameterException> {
+            val exception = assertThrows<InvalidParameterException> {
                 ControllerArgumentResolver.resolve(call, function, controller)
             }
 
@@ -121,6 +129,67 @@ class ControllerArgumentResolverTest {
 
             // Then
             assertTrue(args.values.contains(null))
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for header parameter resolution")
+    inner class HeaderResolutionTests {
+
+        @Test
+        suspend fun `should resolve a required header`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.headers["If-None-Match"] } returns "\"a1b2c3d4\""
+
+            // When
+            val args = ControllerArgumentResolver.resolve(
+                call,
+                SampleController::headerEndpoint,
+                SampleController()
+            )
+
+            // Then
+            val ifNoneMatch = SampleController::headerEndpoint.parameters.first { it.name == "ifNoneMatch" }
+            assertEquals("\"a1b2c3d4\"", args[ifNoneMatch])
+        }
+
+        @Test
+        suspend fun `should leave an absent optional header null`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.headers["If-None-Match"] } returns "\"a1b2c3d4\""
+            every { call.request.headers["If-Modified-Since"] } returns null
+
+            // When
+            val args = ControllerArgumentResolver.resolve(
+                call,
+                SampleController::headerEndpoint,
+                SampleController()
+            )
+
+            // Then
+            val lastModified = SampleController::headerEndpoint.parameters
+                .first { it.name == "lastModified" }
+            assertTrue(!args.containsKey(lastModified) || args[lastModified] == null)
+        }
+
+        @Test
+        suspend fun `should refuse an absent required header`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.headers["If-None-Match"] } returns null
+
+            // When / Then
+            assertThrows<InvalidParameterException> {
+                runBlocking {
+                    ControllerArgumentResolver.resolve(
+                        call,
+                        SampleController::headerEndpoint,
+                        SampleController()
+                    )
+                }
+            }
         }
     }
 }

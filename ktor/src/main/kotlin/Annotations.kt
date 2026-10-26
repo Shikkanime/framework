@@ -126,6 +126,22 @@ annotation class PathParam(
 )
 
 /**
+ * Resolves a controller parameter from a request header.
+ *
+ * Textual values use the same conversions as [QueryParam]. At runtime, a missing value remains
+ * unresolved, and answers HTTP 400 when the parameter is not nullable: a controller deciding on
+ * `If-None-Match` must see the absence, not an empty string.
+ *
+ * @property name header name, as sent by the client.
+ * @property required whether the parameter is required in the generated OpenAPI schema.
+ */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class HttpHeader(
+    val name: String,
+    val required: Boolean = true
+)
+
+/**
  * Deserializes the request payload into the annotated controller parameter using Ktor `receive`.
  *
  * Runtime deserialization always occurs when the parameter is resolved. [required] affects only the

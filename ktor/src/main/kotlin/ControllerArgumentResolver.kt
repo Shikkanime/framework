@@ -118,6 +118,23 @@ internal object ControllerArgumentResolver {
                 }
             }
 
+            if (kParameter.hasAnnotation<HttpHeader>()) {
+                val headerAnnotation = kParameter.findAnnotation<HttpHeader>()!!
+                val stringValue = call.request.headers[headerAnnotation.name]
+
+                if (stringValue != null) {
+                    args[kParameter] = parseParameter(
+                        kParameter,
+                        headerAnnotation.name,
+                        stringValue
+                    )
+                } else if (!headerAnnotation.required && kParameter.type.isMarkedNullable) {
+                    args[kParameter] = null
+                } else if (headerAnnotation.required) {
+                    throw InvalidParameterException("Header '${headerAnnotation.name}' is required")
+                }
+            }
+
             if (kParameter.hasAnnotation<RequestBody>()) {
                 args[kParameter] = call.receive(kParameter.type.jvmErasure)
             }
