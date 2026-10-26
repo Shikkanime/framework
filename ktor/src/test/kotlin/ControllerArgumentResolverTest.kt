@@ -8,6 +8,7 @@ import kotlin.uuid.Uuid
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
@@ -106,7 +107,7 @@ class ControllerArgumentResolverTest {
             val function = SampleController::typeEndpoint
 
             // When
-            val exception = org.junit.jupiter.api.assertThrows<InvalidParameterException> {
+            val exception = assertThrows<InvalidParameterException> {
                 ControllerArgumentResolver.resolve(call, function, controller)
             }
 
@@ -180,7 +181,7 @@ class ControllerArgumentResolverTest {
             every { call.request.headers["If-None-Match"] } returns null
 
             // When / Then
-            org.junit.jupiter.api.assertThrows<InvalidParameterException> {
+            assertThrows<InvalidParameterException> {
                 runBlocking {
                     ControllerArgumentResolver.resolve(
                         call,
