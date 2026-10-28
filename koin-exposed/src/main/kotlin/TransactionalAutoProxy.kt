@@ -69,6 +69,7 @@ fun applyTransactionalProxies(koin: Koin): Int {
  * @return number of definitions wrapped by a transactional proxy.
  * @see applyTransactionalProxies
  */
+@Suppress("unused") // Public convenience overload consumed by downstream projects.
 fun applyTransactionalProxies(): Int =
     applyTransactionalProxies(KoinPlatformTools.defaultContext().get())
 

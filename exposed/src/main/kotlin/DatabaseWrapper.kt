@@ -77,6 +77,7 @@ class DatabaseWrapper(
      * @param tables tables managed by [initializeSchema] and [dropSchema].
      * @return `true` when the collection of registered tables changed.
      */
+    @Suppress("unused") // Public schema API consumed by downstream projects.
     fun addTables(vararg tables: Table) =
         this.tables.addAll(tables)
 

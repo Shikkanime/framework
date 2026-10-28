@@ -3,9 +3,8 @@ package fr.shikkanime.ktor
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.content.OutgoingContent
-import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.readBuffer
 import kotlinx.io.readByteArray
-import java.io.InputStream
 import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.hooks.ResponseBodyReadyForSend
@@ -45,7 +44,7 @@ val ResponseSizeRecorder: ApplicationPlugin<Unit> =
                 // and send the very same bytes.
                 val materialized = (content as OutgoingContent.ReadChannelContent)
                     .readFrom()
-                    .readRemaining()
+                    .readBuffer()
                     .readByteArray()
 
                 call.attributes.put(ResponseSizeAttribute, materialized.size.toLong())

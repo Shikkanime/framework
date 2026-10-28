@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.SizedIterable
  * @param ENTITY type of entity managed by this repository.
  * @property entityClass Exposed DAO class used to create and query entities.
  */
+@Suppress("unused") // Public base class consumed by downstream repositories.
 abstract class EntityRepository<T : Any, ENTITY : Entity<T>>(
     entityClass: EntityClass<T, ENTITY>
 ) : UpsertRepository<T, ENTITY>(entityClass) {
@@ -20,6 +21,7 @@ abstract class EntityRepository<T : Any, ENTITY : Entity<T>>(
      *
      * @return a lazily evaluated Exposed entity sequence containing every entity.
      */
+    @Suppress("unused") // Public repository API consumed by downstream projects.
     fun findAll(): SizedIterable<ENTITY> =
         entityClass.all()
 
@@ -29,6 +31,7 @@ abstract class EntityRepository<T : Any, ENTITY : Entity<T>>(
      * @param ids identifiers to search for.
      * @return a lazily evaluated Exposed entity sequence containing matching entities.
      */
+    @Suppress("unused") // Public repository API consumed by downstream projects.
     fun findAllByIds(ids: List<T>): SizedIterable<ENTITY> =
         entityClass.find { entityClass.table.id inList ids }
 
@@ -38,6 +41,7 @@ abstract class EntityRepository<T : Any, ENTITY : Entity<T>>(
      * @param id identifier to search for.
      * @return the matching entity, or `null` when it does not exist.
      */
+    @Suppress("unused") // Public repository API consumed by downstream projects.
     fun findById(id: T): ENTITY? =
         entityClass.findById(id)
 }

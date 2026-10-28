@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * A concurrency control utility that suppresses duplicate in-flight async calls.
  *
- * Ensures that for a given [key], only one concurrent execution of [block] is performed at a time.
+ * Ensures that for a given `key`, only one concurrent execution of `block` is performed at a time.
  * Subsequent concurrent callers for the same key await and receive the result (or exception)
  * produced by the first execution.
  */

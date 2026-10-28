@@ -25,6 +25,7 @@ abstract class UpsertRepository<T : Any, ENTITY : Entity<T>>(
      * @param id identifier of the referenced entity.
      * @return the typed entity reference of [id].
      */
+    @Suppress("unused") // Public repository API consumed by downstream projects.
     fun getReference(id: T): EntityID<T> =
         EntityID(id, entityClass.table)
 
