@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.SessionConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.pluginOrNull
@@ -27,6 +28,7 @@ class ClientTest {
     @Serializable
     data class TestData(val id: Int, val name: String, val active: Boolean = true)
 
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     @RestController("/api/client-test")
     class ClientTestController : IController {
         @GetMapping
@@ -64,7 +66,7 @@ class ClientTest {
             testApplication {
                 // Given
                 application {
-                    configureDefaultModules()
+                    configureDefaultModules(session = SessionConfig(enabled = false))
                     routing {
                         ControllerBinder.register(this, listOf(ClientTestController()))
                     }
@@ -90,7 +92,7 @@ class ClientTest {
             testApplication {
                 // Given
                 application {
-                    configureDefaultModules()
+                    configureDefaultModules(session = SessionConfig(enabled = false))
                     routing {
                         ControllerBinder.register(this, listOf(ClientTestController()))
                     }

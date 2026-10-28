@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.SessionConfig
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -17,6 +18,7 @@ class OpenApiTest {
     @Serializable
     data class MovieDto(val id: Int, val title: String)
 
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     @RestController("/api/movies")
     class MovieController : IController {
 
@@ -55,7 +57,7 @@ class OpenApiTest {
             testApplication {
                 // Given
                 application {
-                    configureDefaultModules()
+                    configureDefaultModules(session = SessionConfig(enabled = false))
                     routing {
                         configureSwaggerRoute("Movie API", "1.0.0")
                         ControllerBinder.register(this, listOf(MovieController()))

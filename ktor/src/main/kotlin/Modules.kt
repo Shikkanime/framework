@@ -1,5 +1,12 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.FileSessionStore
+import fr.shikkanime.ktor.session.SessionConfig
+import fr.shikkanime.ktor.session.SessionHeaders
+import fr.shikkanime.ktor.session.SessionTraceController
+import fr.shikkanime.ktor.session.installSessionTracking
+import fr.shikkanime.ktor.session.resolvedDirectory
+import fr.shikkanime.ktor.session.resolvedService
 import io.ktor.http.*
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.cbor.*
@@ -16,18 +23,49 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 
 /**
- * Configures the default content negotiation and CORS modules, and registers the built-in [HealthController].
+ * Configures the default content negotiation, CORS, session tracking, and the built-in
+ * [HealthController].
  *
- * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework configurations,
- * while CORS accepts requests from any host using Ktor's default HTTP methods. A `GET /health` route
- * returning `OK` is bound automatically so every consumer exposes the same UP endpoint.
+ * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework
+ * configurations, while CORS accepts requests from any host using Ktor's default HTTP methods and
+ * exposes the session headers to browser clients. A `GET /health` route returning `OK` is bound
+ * automatically so every consumer exposes the same UP endpoint.
+ *
+ * When [session] is enabled, every request is journaled under
+ * `logs/sessions/<service>/<sessionId>.jsonl`, and the read API is registered when a token is set.
+ *
+ * @param extraModules kotlinx serialization modules merged into the JSON converter.
+ * @param session session tracking configuration.
  */
-fun Application.configureDefaultModules(vararg extraModules: SerializersModule = emptyArray()) {
+fun Application.configureDefaultModules(
+    vararg extraModules: SerializersModule = emptyArray(),
+    session: SessionConfig = SessionConfig()
+) {
     install(ResponseSizeRecorder)
     configureContentNegotiation(*extraModules)
     configureCORS()
+
+    val store = if (session.enabled) {
+        session.store ?: FileSessionStore(
+            directory = session.resolvedDirectory(),
+            service = session.resolvedService(),
+            retention = session.retention
+        )
+    } else {
+        null
+    }
+
+    if (store != null) {
+        installSessionTracking(session, store, closeStoreOnStop = session.store == null)
+    }
+
     routing {
-        ControllerBinder.register(this, listOf(HealthController()))
+        val controllers = mutableListOf<Any>(HealthController())
+        val token = session.apiToken?.takeIf { it.isNotBlank() }
+        if (store != null && token != null) {
+            controllers += SessionTraceController(store, token)
+        }
+        ControllerBinder.register(this, controllers)
     }
 }
 
@@ -74,11 +112,19 @@ internal fun Application.configureContentNegotiation(vararg extraModules: Serial
 
 /**
  * Configures CORS on the server to accept requests from any host using default HTTP methods.
+ *
+ * The session correlation headers are allowed in preflight requests and exposed on responses, so a
+ * browser client can read the identifiers the server assigned to its session.
  */
 internal fun Application.configureCORS() {
     install(CORS) {
         anyHost()
         HttpMethod.DefaultMethods.forEach(::allowMethod)
+        allowHeader(SessionHeaders.SESSION_ID)
+        allowHeader(SessionHeaders.REQUEST_ID)
+        allowHeader(SessionHeaders.PARENT_REQUEST_ID)
+        exposeHeader(SessionHeaders.SESSION_ID)
+        exposeHeader(SessionHeaders.REQUEST_ID)
     }
 }
 

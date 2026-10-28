@@ -13,7 +13,7 @@ The project is structured into distinct, decoupled framework modules. **Do not v
 - **`cache`**: Two-level caching engine (`Cache`), L1 LRU memory cache (`L1Cache`), L2 Valkey client (`ValkeyWrapper`), CBOR binary serialization (`BinaryCodec`), bucket versioning, and single-flight loader deduplication (`SingleFlight`).
 - **`exposed`**: Database connection management (`DatabaseWrapper`), Exposed ORM integration, Liquibase migrations, `@Transactional` annotations & proxying (`TransactionalProxy`), and repository base classes (`UpsertRepository`, `EntityRepository`).
 - **`validator`**: Reflection-based validation engine (`Validator`), constraints (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and `ObjectNotValidException`.
-- **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), a preconfigured HTTP client (`createHttpClient`), and the built-in `/health` UP endpoint auto-registered by `configureDefaultModules`.
+- **`ktor`**: Ktor (server and client) integrations, route annotation binding (`@RestController`, `@GetMapping`, `@PostMapping`, `@PatchMapping`), request parameter resolvers (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation integration, `ResponseEntity` wrapper, `MessageDto` error response standardization, OpenAPI metadata (`@Operation`, `@ApiResponses`, `@ApiResponse`), a preconfigured HTTP client (`createHttpClient`) forwarding the current session, a persistent per-session journal (`SessionContext`, `SessionStore`, `/v1/session-traces`), and the built-in `/health` UP endpoint auto-registered by `configureDefaultModules`.
 - **`koin`**: Dependency carrier publishing the Koin runtime APIs (`koin-bom`, `koin-core`, `koin-annotations`) via `api(...)`; contains no source code.
 - **`koin-exposed`**: Koin bridge for transactions — `applyTransactionalProxies()` post-processor replacing eligible singleton definitions with `TransactionalProxy`-wrapping factories; depends on `exposed` and the `koin` carrier.
 - **`ktor-test`**: Dependency carrier publishing the Ktor server test host (`ktor-server-test-host`) and the Ktor client mock engine (`ktor-client-mock`) via `api(...)`; contains no source code.
@@ -66,4 +66,6 @@ Before concluding your task, perform a final check:
 - Is validation logic tested and error responses sanitized?
 - Have you verified the build and tests with `./gradlew test`?
 
-Consult additional guides for [Cache](guidelines/CACHE.md), [Database](guidelines/DATABASE.md), and [Performance](guidelines/PERFORMANCE.md) rules as needed.
+Consult additional guides for [Cache](guidelines/CACHE.md), [Database](guidelines/DATABASE.md),
+[Performance](guidelines/PERFORMANCE.md), and [Session Tracking](guidelines/SESSION_TRACKING.md)
+rules as needed.

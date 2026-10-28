@@ -5,7 +5,6 @@ import fr.shikkanime.ktor.dtos.MessageDto
 import fr.shikkanime.validator.Validator
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.http.*
-import io.ktor.server.request.*
 import io.ktor.util.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -14,6 +13,14 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspendBy
 import kotlin.reflect.full.hasAnnotation
+
+/**
+ * Call attribute holding the exception that failed a controller invocation.
+ *
+ * The session journal and the future log layer read it to describe the failure without parsing the
+ * response body.
+ */
+internal val ErrorAttribute: AttributeKey<Throwable> = AttributeKey("Error")
 
 /**
  * Creates Ktor handlers that invoke controller functions and translate their results to responses.
@@ -63,6 +70,7 @@ internal object ControllerRequestHandler {
             }
         } catch (exception: Exception) {
             val cause = (exception as? InvocationTargetException)?.targetException ?: exception
+            call.attributes.put(ErrorAttribute, cause)
             cause.printStackTrace()
 
             when (cause) {

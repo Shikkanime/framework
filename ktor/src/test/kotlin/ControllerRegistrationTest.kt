@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.SessionConfig
 import fr.shikkanime.validator.NotBlank
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.client.request.accept
@@ -35,6 +36,7 @@ class ControllerRegistrationTest {
         val title: String
     )
 
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     @RestController("/api/books")
     class BookController : IController {
         @GetMapping("/{id}")
@@ -100,12 +102,14 @@ class ControllerRegistrationTest {
 
 
     /** Not annotated with [RestController]: must not be registered. */
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     class PlainController {
         fun get(): ResponseEntity<String> =
             ResponseEntity.ok("nope")
     }
 
     /** [RestController] with a method that has no mapping annotation: must not be bound. */
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     @RestController("/api/extra")
     class ExtraController : IController {
         fun unannotated(): String =
@@ -114,7 +118,7 @@ class ControllerRegistrationTest {
 
     private fun ApplicationTestBuilder.registerControllers(controllers: List<Any>) {
         application {
-            configureDefaultModules()
+            configureDefaultModules(session = SessionConfig(enabled = false))
             routing { ControllerBinder.register(this, controllers) }
         }
     }
