@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 
 class ControllerArgumentResolverTest {
 
-    enum class TestStatus { ACTIVE, INACTIVE }
+    enum class TestStatus { ACTIVE }
 
     class SampleController {
         fun sampleEndpoint(
@@ -175,7 +175,7 @@ class ControllerArgumentResolverTest {
         }
 
         @Test
-        suspend fun `should refuse an absent required header`() {
+        fun `should refuse an absent required header`() {
             // Given
             val call = mockk<ApplicationCall>(relaxed = true)
             every { call.request.headers["If-None-Match"] } returns null

@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.SessionConfig
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -39,6 +40,7 @@ class ContentNegotiationTest {
         val extra: String = "extra"
     )
 
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
     @RestController("/api/test-negotiation")
     class NegotiationTestController : IController {
         @GetMapping
@@ -168,7 +170,7 @@ class ContentNegotiationTest {
             testApplication {
                 // Given
                 application {
-                    configureDefaultModules()
+                    configureDefaultModules(session = SessionConfig(enabled = false))
                     routing {
                         ControllerBinder.register(this, listOf(NegotiationTestController()))
                     }

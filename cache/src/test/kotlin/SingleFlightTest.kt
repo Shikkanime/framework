@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 class SingleFlightTest {
 
@@ -24,7 +25,7 @@ class SingleFlightTest {
 
             val loader: suspend () -> String = {
                 callCounter.incrementAndGet()
-                delay(50)
+                delay(50.milliseconds)
                 "Shared Result"
             }
 
@@ -96,7 +97,7 @@ class SingleFlightTest {
 
             val failingLoader: suspend () -> String = {
                 callCounter.incrementAndGet()
-                delay(30)
+                delay(30.milliseconds)
                 throw IllegalStateException("Loader failure")
             }
 

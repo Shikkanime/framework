@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.SessionConfig
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -13,7 +14,7 @@ import org.junit.jupiter.api.Test
 class HealthControllerTest {
     private fun ApplicationTestBuilder.configureApplication() {
         application {
-            configureDefaultModules()
+            configureDefaultModules(session = SessionConfig(enabled = false))
         }
     }
 

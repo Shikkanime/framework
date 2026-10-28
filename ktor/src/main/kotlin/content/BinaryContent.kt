@@ -14,8 +14,8 @@ import io.ktor.http.content.OutgoingContent
  *
  * @property bytes raw payload.
  * @property contentType media type of the payload.
- * @property etag validator identifying this exact payload, when the caller publishes one.
- * @property cacheControl `Cache-Control` directive of the response, when the caller publishes one.
+ * @param etag validator identifying this exact payload, when the caller publishes one.
+ * @param cacheControl `Cache-Control` directive of the response, when the caller publishes one.
  * @see fr.shikkanime.ktor.ResponseEntity.binary
  */
 class BinaryContent(

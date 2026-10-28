@@ -5,6 +5,7 @@ package fr.shikkanime.ktor
  */
 @RestController("/health")
 class HealthController : IController {
+    @Suppress("unused") // Bound reflectively by ControllerBinder.
     @Operation(summary = "Health check", description = "Returns OK when the service is UP")
     @ApiResponses([ApiResponse(status = 200, description = "Service is UP", responseType = String::class)])
     @GetMapping

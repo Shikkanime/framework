@@ -79,6 +79,7 @@ class ValkeyWrapperImpl(private val client: GlideClient) : ValkeyWrapper {
          * @param port Network port of the Valkey server (defaults to `6379`).
          * @return A newly initialized and connected [ValkeyWrapperImpl].
          */
+        @Suppress("unused") // Public factory consumed by downstream projects.
         suspend fun connect(host: String = "localhost", port: Int = 6379): ValkeyWrapperImpl {
             val configuration = GlideClientConfiguration.builder()
                 .address(

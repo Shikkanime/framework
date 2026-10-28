@@ -3,7 +3,7 @@
 This file contains specific rules for the `ktor` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `ktor` module provides web framework integration for Ktor (server **and client**). It handles `@RestController` discovery, route mapping (`@GetMapping`, `@PostMapping`, `@PatchMapping`), request argument resolution (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation, `ResponseEntity` packaging, `MessageDto` response serialization, and OpenAPI documentation generation, as well as framework-aware HTTP clients (e.g. a preconfigured `HttpClient`).
+The `ktor` module provides web framework integration for Ktor (server **and client**). It handles `@RestController` discovery, route mapping (`@GetMapping`, `@PostMapping`, `@PatchMapping`), request argument resolution (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation, `ResponseEntity` packaging, `MessageDto` response serialization, OpenAPI documentation generation, a persistent per-session journal, and framework-aware HTTP clients (e.g. a preconfigured `HttpClient`).
 
 ## Submodule-Specific Rules
 
@@ -28,3 +28,13 @@ The `ktor` module provides web framework integration for Ktor (server **and clie
    - Methods should return responses wrapped in `ResponseEntity<T>` or direct serializable objects.
    - Error payloads must utilize `MessageDto.error(message)` or `ErrorMessageDto`.
    - Document endpoints with `@Operation`, `@ApiResponses`, and `@ApiResponse` to generate compliant OpenAPI documentation.
+
+6. **Session Tracking**:
+   - `configureDefaultModules()` installs the session journal by default. `SessionStore.append`
+     must stay non-blocking: never move JSON serialization or file I/O to the request thread.
+   - The read API is registered only when `SessionConfig.apiToken` is set, and every endpoint is
+     bearer-protected. An unprotected session endpoint is a review blocker.
+   - Session and request identifiers become file names: validate them with `SessionIds`, never
+     interpolate a raw header into a path.
+   - See [Session Tracking](../guidelines/SESSION_TRACKING.md) for the storage and performance
+     contract.

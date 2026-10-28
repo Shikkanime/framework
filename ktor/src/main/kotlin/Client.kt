@@ -1,5 +1,6 @@
 package fr.shikkanime.ktor
 
+import fr.shikkanime.ktor.session.installSessionPropagation
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
@@ -12,14 +13,15 @@ import kotlinx.serialization.ExperimentalSerializationApi
 /**
  * Creates a preconfigured [HttpClient] using the OkHttp engine.
  *
- * Configures HTTP timeouts (30s request, 10s connect, 30s socket) and registers content negotiation
- * for JSON, Protobuf, and CBOR using [defaultJson], [defaultProtoBuf], and [defaultCbor].
+ * Configures HTTP timeouts (30s request, 10s connect, 30s socket), registers content negotiation
+ * for JSON, Protobuf, and CBOR using [defaultJson], [defaultProtoBuf], and [defaultCbor], and
+ * forwards the current session to outgoing calls.
  *
  * @return a new preconfigured [HttpClient] instance.
  */
 @OptIn(ExperimentalSerializationApi::class)
-fun createHttpClient(): HttpClient =
-    HttpClient(OkHttp) {
+fun createHttpClient(): HttpClient {
+    val client = HttpClient(OkHttp) {
         install(HttpTimeout) {
             requestTimeoutMillis = 30_000
             connectTimeoutMillis = 10_000
@@ -32,3 +34,6 @@ fun createHttpClient(): HttpClient =
             cbor(defaultCbor)
         }
     }
+    client.installSessionPropagation()
+    return client
+}
