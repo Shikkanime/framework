@@ -7,6 +7,8 @@ import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.util.*
+import io.ktor.util.reflect.TypeInfo
+import io.ktor.util.reflect.typeInfoImpl
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.lang.reflect.InvocationTargetException
@@ -54,12 +56,22 @@ internal object ControllerRequestHandler {
             args.filter { (kParameter, value) -> kParameter.hasAnnotation<Valid>() && value != null }
                 .forEach { (_, value) -> Validator.validate(value!!) }
 
+            val typeInfo = responseTypeInfo(function)
+
             when (val result = function.callSuspendBy(args)) {
                 is ResponseEntity<*> ->
-                    call.respond(result.status, result.body ?: "")
+                    if (typeInfo == null) {
+                        call.respond(result.status, result.body ?: "")
+                    } else {
+                        call.respond(result.status, result.body ?: "", typeInfo)
+                    }
 
                 else ->
-                    call.respond(result ?: "")
+                    if (typeInfo == null) {
+                        call.respond(result ?: "")
+                    } else {
+                        call.respond(result ?: "", typeInfo)
+                    }
             }
         } catch (exception: Exception) {
             val cause = (exception as? InvocationTargetException)?.targetException ?: exception
@@ -73,14 +85,49 @@ internal object ControllerRequestHandler {
                     call.respond(HttpStatusCode.BadRequest, MessageDto.error(cause.message))
 
                 else ->
-                    call.respond(HttpStatusCode.InternalServerError, MessageDto.error("An unexpected error occurred"))
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        MessageDto.error("An unexpected error occurred")
+                    )
             }
         }
 
         val durationMs = (System.nanoTime() - start) / MILLIS_IN_NANOSECONDS
         val sizeLog = call.attributes.getOrNull(ResponseSizeAttribute)?.let(::formatBytes) ?: "NaN"
 
-        logger.info("End - ${controllerClass.simpleName}.${function.name} (${"%.2f ms".format(durationMs)}; $sizeLog)")
+        logger.info(
+            "End - ${controllerClass.simpleName}.${function.name} " +
+                "(${"%.2f ms".format(durationMs)}; $sizeLog)"
+        )
+    }
+
+    /**
+     * Resolves the serialization type of the body a controller function declares.
+     *
+     * Ktor serializes a response from the type the call site knows, and [ControllerRequestHandler]
+     * invokes every function through a star-projected return type. A generic body - a `PageDto<T>`,
+     * a `List<T>` - would therefore lose its type arguments and fail to find a serializer. The
+     * declared return type carries them; a `ResponseEntity<T>` exposes the body as its first type
+     * argument, and a plain return type is the body itself.
+     *
+     * `Any` deliberately answers `null`: a route that declares no precise type keeps Ktor's runtime
+     * lookup, which is how an error payload of another type reaches the same declaration.
+     *
+     * @param function controller function whose declared return type is read.
+     * @return the body type, or `null` when the declaration does not describe one precisely.
+     */
+    private fun responseTypeInfo(function: KFunction<*>): TypeInfo? {
+        val declared = function.returnType
+        val bodyType = if (declared.classifier == ResponseEntity::class) {
+            declared.arguments.firstOrNull()?.type
+        } else {
+            declared
+        } ?: return null
+
+        val type = bodyType.classifier as? KClass<*> ?: return null
+
+        @Suppress("DEPRECATION") // The constructor is internal, and this factory is Ktor's public one.
+        return if (type == Any::class) null else typeInfoImpl(type.java, type, bodyType)
     }
 
     /**
