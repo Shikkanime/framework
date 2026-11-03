@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // `typeInfoImpl` is Ktor's public factory while its constructor is internal.
+
 package fr.shikkanime.ktor
 
 import fr.shikkanime.core.LoggerFactory
@@ -5,12 +7,10 @@ import fr.shikkanime.ktor.dtos.MessageDto
 import fr.shikkanime.validator.Validator
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.util.*
-import io.ktor.util.reflect.TypeInfo
-import io.ktor.util.reflect.typeInfoImpl
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.reflect.TypeInfo
+import io.ktor.util.reflect.typeInfoImpl
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
