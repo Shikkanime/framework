@@ -6,6 +6,7 @@ import io.ktor.serialization.kotlinx.cbor.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.serialization.kotlinx.protobuf.*
 import io.ktor.server.application.*
+import io.ktor.server.plugins.compression.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.swagger.*
@@ -16,18 +17,37 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 
 /**
- * Configures the default content negotiation and CORS modules, and registers the built-in [HealthController].
+ * Configures the default content negotiation, response compression and CORS modules, and registers
+ * the built-in [HealthController].
  *
- * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework configurations,
- * while CORS accepts requests from any host using Ktor's default HTTP methods. A `GET /health` route
- * returning `OK` is bound automatically so every consumer exposes the same UP endpoint.
+ * Content negotiation supports JSON, Protobuf, and CBOR formats using standard framework
+ * configurations; responses above 256 bytes are gzip-compressed when the client accepts it. CORS
+ * accepts requests from any host using Ktor's default HTTP methods. A `GET /health` route returning
+ * `OK` is bound automatically so every consumer exposes the same UP endpoint.
  */
 fun Application.configureDefaultModules(vararg extraModules: SerializersModule = emptyArray()) {
     install(ResponseSizeRecorder)
     configureContentNegotiation(*extraModules)
+    configureCompression()
     configureCORS()
     routing {
         ControllerBinder.register(this, listOf(HealthController()))
+    }
+}
+
+/**
+ * Compresses responses with gzip, falling back to deflate.
+ *
+ * The browser negotiates the encoding with `Accept-Encoding` and decompresses transparently, so a
+ * JSON, Protobuf or CBOR payload costs less on the wire without changing a DTO. Binary payloads
+ * (images, archives) are left untouched by Ktor's content type conditions.
+ */
+private fun Application.configureCompression() {
+    install(Compression) {
+        // An administration page is already worth compressing below the 1 KiB default.
+        minimumSize(256)
+        gzip()
+        deflate()
     }
 }
 
