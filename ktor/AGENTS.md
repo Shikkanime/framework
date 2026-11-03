@@ -3,7 +3,7 @@
 This file contains specific rules for the `ktor` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `ktor` module provides web framework integration for Ktor (server **and client**). It handles `@RestController` discovery, route mapping (`@GetMapping`, `@PostMapping`, `@PatchMapping`), request argument resolution (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation, `ResponseEntity` packaging, `MessageDto` response serialization, and OpenAPI documentation generation, as well as framework-aware HTTP clients (e.g. a preconfigured `HttpClient`).
+The `ktor` module provides web framework integration for Ktor (server **and client**). It handles `@RestController` discovery, route mapping (`@GetMapping`, `@PostMapping`, `@PatchMapping`), request argument resolution (`@QueryParam`, `@PathParam`, `@RequestBody`), automatic `@Valid` validation, `ResponseEntity` packaging, `MessageDto` response serialization, OpenAPI documentation generation, gzip/deflate response compression, as well as framework-aware HTTP clients (e.g. a preconfigured `HttpClient`).
 
 ## Submodule-Specific Rules
 
