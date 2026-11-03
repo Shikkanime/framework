@@ -157,6 +157,18 @@ class ContentNegotiationTest {
             assertEquals(1, decoded.id)
             assertEquals("CBOR Extra", decoded.title)
         }
+
+        @Test
+        fun `should encode the top-level map with a definite length`() {
+            // Given
+            val payload = SamplePayload(id = 1, title = "CBOR")
+
+            // When
+            val bytes = defaultCbor.encodeToByteArray(payload)
+
+            // Then
+            assertEquals(0xA0, bytes[0].toInt() and 0xE0)
+        }
     }
 
     @Nested

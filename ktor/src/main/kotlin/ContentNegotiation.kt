@@ -36,4 +36,7 @@ val defaultProtoBuf: ProtoBuf = ProtoBuf {
 val defaultCbor: Cbor = Cbor {
     encodeDefaults = true
     ignoreUnknownKeys = true
+    // Definite-length maps and arrays cost one or two bytes less per container than the
+    // indefinite-length form, and every CBOR decoder accepts both.
+    useDefiniteLengthEncoding = true
 }
