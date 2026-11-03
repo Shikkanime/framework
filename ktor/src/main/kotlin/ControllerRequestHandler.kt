@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // `typeInfoImpl` is Ktor's public factory while its constructor is internal.
-
 package fr.shikkanime.ktor
 
 import fr.shikkanime.core.LoggerFactory
@@ -10,7 +8,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.reflect.TypeInfo
-import io.ktor.util.reflect.typeInfoImpl
+import io.ktor.utils.io.InternalAPI
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -116,6 +114,7 @@ internal object ControllerRequestHandler {
      * @param function controller function whose declared return type is read.
      * @return the body type, or `null` when the declaration does not describe one precisely.
      */
+    @OptIn(InternalAPI::class) // Ktor marks the constructor its deprecation points to as internal.
     private fun responseTypeInfo(function: KFunction<*>): TypeInfo? {
         val declared = function.returnType
         val bodyType = if (declared.classifier == ResponseEntity::class) {
@@ -126,8 +125,7 @@ internal object ControllerRequestHandler {
 
         val type = bodyType.classifier as? KClass<*> ?: return null
 
-        @Suppress("DEPRECATION") // The constructor is internal, and this factory is Ktor's public one.
-        return if (type == Any::class) null else typeInfoImpl(type.java, type, bodyType)
+        return if (type == Any::class) null else TypeInfo(type, bodyType.isMarkedNullable, bodyType)
     }
 
     /**
