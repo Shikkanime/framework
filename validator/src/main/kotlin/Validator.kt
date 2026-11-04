@@ -112,7 +112,7 @@ object Validator {
         val min = kProperty.findAnnotation<Min>() ?: return null
         val number = integralValue(value) ?: return null
 
-        return min.message.takeIf { number < min.value }
+        return min.message.takeIf { number < min.value.toLong() }
     }
 
     /**
@@ -126,7 +126,7 @@ object Validator {
         val max = kProperty.findAnnotation<Max>() ?: return null
         val number = integralValue(value) ?: return null
 
-        return max.message.takeIf { number > max.value }
+        return max.message.takeIf { number > max.value.toLong() }
     }
 
     /**

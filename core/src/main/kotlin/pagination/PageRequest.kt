@@ -14,8 +14,8 @@ data class PageRequest(
     val size: Int = DEFAULT_SIZE
 ) {
     init {
-        require(page >= 1) { "page must be at least 1" }
-        require(size in 1..MAX_SIZE) { "size must be between 1 and $MAX_SIZE" }
+        require(page >= MIN_PAGE) { "page must be at least $MIN_PAGE" }
+        require(size in MIN_SIZE..MAX_SIZE) { "size must be between $MIN_SIZE and $MAX_SIZE" }
     }
 
     /** Number of elements to skip before the requested page. */
@@ -23,8 +23,14 @@ data class PageRequest(
         get() = (page - 1L) * size
 
     companion object {
+        /** First page a client may request. */
+        const val MIN_PAGE = 1
+
         /** Page returned when the caller does not ask for one. */
-        const val DEFAULT_PAGE = 1
+        const val DEFAULT_PAGE = MIN_PAGE
+
+        /** Smallest page a client may request. */
+        const val MIN_SIZE = 1
 
         /** Number of elements returned when the caller does not ask for a size. */
         const val DEFAULT_SIZE = 20
@@ -46,8 +52,8 @@ data class PageRequest(
          */
         fun of(page: Int?, size: Int?, defaultSize: Int = DEFAULT_SIZE): PageRequest =
             PageRequest(
-                page = (page ?: DEFAULT_PAGE).coerceAtLeast(DEFAULT_PAGE),
-                size = (size ?: defaultSize).coerceIn(1, MAX_SIZE)
+                page = (page ?: DEFAULT_PAGE).coerceAtLeast(MIN_PAGE),
+                size = (size ?: defaultSize).coerceIn(MIN_SIZE, MAX_SIZE)
             )
     }
 }

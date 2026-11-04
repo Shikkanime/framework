@@ -2,6 +2,7 @@ package fr.shikkanime.ktor
 
 import fr.shikkanime.core.pagination.Page
 import fr.shikkanime.ktor.pagination.PageDto
+import fr.shikkanime.ktor.pagination.PageQuery
 import fr.shikkanime.ktor.pagination.toDto
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -32,6 +33,14 @@ class PaginationTest {
                 size = 2,
                 totalElements = 5
             ).toDto { it }
+    }
+
+    @Suppress("unused") // Controller methods are bound reflectively by ControllerBinder.
+    @RestController("/api/paged-query")
+    class PagedQueryController : IController {
+        @GetMapping
+        fun page(@Valid @ModelAttribute query: PageQuery): String =
+            "${query.page}/${query.size}"
     }
 
     private fun ApplicationTestBuilder.registerController() {
@@ -83,5 +92,63 @@ class PaginationTest {
             assertEquals(3, dto.totalPages)
             assertEquals(8L, dto.totalElements)
         }
+    }
+
+    @Nested
+    @DisplayName("tests for the bound page query")
+    inner class PageQueryTests {
+
+        private fun ApplicationTestBuilder.registerPagedQueryController() {
+            application {
+                configureDefaultModules()
+                routing { ControllerBinder.register(this, listOf(PagedQueryController())) }
+            }
+        }
+
+        @Test
+        fun `should bind the page and size query parameters`() =
+            testApplication {
+                // Given / When
+                registerPagedQueryController()
+                val response = client.get("/api/paged-query?page=3&size=50")
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("3/50", response.bodyAsText())
+            }
+
+        @Test
+        fun `should keep the defaults when the parameters are absent`() =
+            testApplication {
+                // Given / When
+                registerPagedQueryController()
+                val response = client.get("/api/paged-query")
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("1/20", response.bodyAsText())
+            }
+
+        @Test
+        fun `should refuse a page below one`() =
+            testApplication {
+                // Given / When
+                registerPagedQueryController()
+                val response = client.get("/api/paged-query?page=0")
+
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+            }
+
+        @Test
+        fun `should refuse a size above the maximum`() =
+            testApplication {
+                // Given / When
+                registerPagedQueryController()
+                val response = client.get("/api/paged-query?size=500")
+
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+            }
     }
 }

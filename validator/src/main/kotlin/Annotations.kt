@@ -64,7 +64,7 @@ annotation class NotEmpty(val message: String = "This field cannot be empty")
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Min(val value: Long, val message: String = "This field is below its minimum")
+annotation class Min(val value: Int, val message: String = "This field is below its minimum")
 
 /**
  * Requires the annotated integral property to be less than or equal to [value].
@@ -78,4 +78,4 @@ annotation class Min(val value: Long, val message: String = "This field is below
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Max(val value: Long, val message: String = "This field is above its maximum")
+annotation class Max(val value: Int, val message: String = "This field is above its maximum")
