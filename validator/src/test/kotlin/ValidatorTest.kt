@@ -2,6 +2,7 @@ package fr.shikkanime.validator
 
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -23,6 +24,12 @@ class ValidatorTest {
     data class SampleNotEmptyDto(
         @NotEmpty("Items cannot be empty")
         val items: List<String>?
+    )
+
+    data class SampleRangeDto(
+        @Min(1, "Page starts at 1")
+        @Max(20, "Size ends at 20")
+        val value: Int?
     )
 
     @RequireAtLeastOneValid("Provide at least one detail")
@@ -130,6 +137,54 @@ class ValidatorTest {
                 Validator.validate(dto)
             }
             assertTrue(exception.message.contains("Provide at least one detail"))
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for Min and Max constraints")
+    inner class RangeTests {
+        @Test
+        fun `should pass validation on both bounds`() {
+            // Given
+            val atMinimum = SampleRangeDto(value = 1)
+            val atMaximum = SampleRangeDto(value = 20)
+
+            // When / Then
+            assertDoesNotThrow { Validator.validate(atMinimum) }
+            assertDoesNotThrow { Validator.validate(atMaximum) }
+        }
+
+        @Test
+        fun `should refuse a value below the minimum`() {
+            // Given
+            val dto = SampleRangeDto(value = 0)
+
+            // When
+            val exception = assertThrows<ObjectNotValidException> { Validator.validate(dto) }
+
+            // Then
+            assertTrue(exception.message!!.contains("Page starts at 1"))
+        }
+
+        @Test
+        fun `should refuse a value above the maximum`() {
+            // Given
+            val dto = SampleRangeDto(value = 21)
+
+            // When
+            val exception = assertThrows<ObjectNotValidException> { Validator.validate(dto) }
+
+            // Then
+            assertTrue(exception.message!!.contains("Size ends at 20"))
+        }
+
+        @Test
+        fun `should ignore a null value`() {
+            // Given
+            val dto = SampleRangeDto(value = null)
+
+            // When / Then
+            assertDoesNotThrow { Validator.validate(dto) }
         }
     }
 }

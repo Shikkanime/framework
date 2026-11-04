@@ -10,7 +10,7 @@ import kotlin.reflect.full.memberProperties
 /**
  * Validates Kotlin objects by inspecting their runtime annotations and member property values.
  *
- * Supported constraints are [NotNull], [NotBlank], [NotEmpty], and [RequireAtLeastOneValid].
+ * Supported constraints are [NotNull], [NotBlank], [NotEmpty], [Min], [Max], and [RequireAtLeastOneValid].
  * Validation collects every error before throwing an [ObjectNotValidException], allowing callers
  * to receive all detected violations in a single message.
  */
@@ -84,6 +84,52 @@ object Validator {
     }
 
     /**
+     * Returns the integral value carried by [value].
+     *
+     * [Min] and [Max] only constrain integral numbers: a string, an enumeration or a `null` value
+     * is left to the other constraints.
+     *
+     * @param value runtime value of the validated property.
+     * @return the value as a long, or `null` when it is not an integral number.
+     */
+    private fun integralValue(value: Any?): Long? =
+        when (value) {
+            is Byte -> value.toLong()
+            is Short -> value.toLong()
+            is Int -> value.toLong()
+            is Long -> value.toLong()
+            else -> null
+        }
+
+    /**
+     * Evaluates the [Min] constraint declared on [kProperty].
+     *
+     * @param kProperty property whose annotations are inspected.
+     * @param value current property value.
+     * @return the annotation message when the value is below the bound, otherwise `null`.
+     */
+    private fun minValidator(kProperty: KProperty<*>, value: Any?): String? {
+        val min = kProperty.findAnnotation<Min>() ?: return null
+        val number = integralValue(value) ?: return null
+
+        return min.message.takeIf { number < min.value }
+    }
+
+    /**
+     * Evaluates the [Max] constraint declared on [kProperty].
+     *
+     * @param kProperty property whose annotations are inspected.
+     * @param value current property value.
+     * @return the annotation message when the value is above the bound, otherwise `null`.
+     */
+    private fun maxValidator(kProperty: KProperty<*>, value: Any?): String? {
+        val max = kProperty.findAnnotation<Max>() ?: return null
+        val number = integralValue(value) ?: return null
+
+        return max.message.takeIf { number > max.value }
+    }
+
+    /**
      * Validates every member property of [obj] and its class-level constraints.
      *
      * Property errors are collected and joined with `"; "`. A property counts toward
@@ -103,6 +149,8 @@ object Validator {
             notNullValidator(property, value)?.let(propertyErrors::add)
             notBlankValidator(property, value)?.let(propertyErrors::add)
             notEmptyValidator(property, value)?.let(propertyErrors::add)
+            minValidator(property, value)?.let(propertyErrors::add)
+            maxValidator(property, value)?.let(propertyErrors::add)
 
             if (value != null && propertyErrors.isEmpty())
                 validPropertiesCount++

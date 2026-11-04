@@ -53,3 +53,29 @@ annotation class NotBlank(val message: String = "This field cannot be blank")
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class NotEmpty(val message: String = "This field cannot be empty")
+/**
+ * Requires the annotated integral property to be greater than or equal to [value].
+ *
+ * [Validator] applies this constraint to [Byte], [Short], [Int] and [Long] values. `null` and other
+ * types are ignored, so combine it with [NotNull] when the field is mandatory.
+ *
+ * @property value smallest accepted value, inclusive.
+ * @property message error message reported when the value is below [value].
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Min(val value: Long, val message: String = "This field is below its minimum")
+
+/**
+ * Requires the annotated integral property to be less than or equal to [value].
+ *
+ * [Validator] applies this constraint to [Byte], [Short], [Int] and [Long] values. `null` and other
+ * types are ignored, so combine it with [NotNull] when the field is mandatory. It is the upper bound
+ * of [Min]: `@Min(1) @Max(20)` accepts 1 and 20 and refuses 0 as well as 21.
+ *
+ * @property value largest accepted value, inclusive.
+ * @property message error message reported when the value is above [value].
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Max(val value: Long, val message: String = "This field is above its maximum")

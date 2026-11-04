@@ -3,7 +3,7 @@
 This file contains specific rules for the `validator` submodule. All agents working within this submodule must strictly adhere to these guidelines in addition to the root [`AGENTS.md`](../AGENTS.md).
 
 ## Module Purpose & Scope
-The `validator` module provides a lightweight, reflection-based validation engine (`Validator`), standard validation annotations (`@RequireAtLeastOneValid`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and the `ObjectNotValidException` error.
+The `validator` module provides a lightweight, reflection-based validation engine (`Validator`), standard validation annotations (`@RequireAtLeastOneValid`, `@Min`, `@Max`, `@NotNull`, `@NotBlank`, `@NotEmpty`), and the `ObjectNotValidException` error.
 
 ## Submodule-Specific Rules
 
@@ -18,6 +18,7 @@ The `validator` module provides a lightweight, reflection-based validation engin
    - `@NotNull`: Triggers error when property value is `null`.
    - `@NotBlank`: Applies only when the value is a `CharSequence`. Empty or blank strings trigger errors. Null values are ignored (combine with `@NotNull` if nulls are prohibited).
    - `@NotEmpty`: Applies only when the value is a `Collection`. Empty collections trigger errors. Null values are ignored (combine with `@NotNull` if nulls are prohibited).
+   - `@Min` / `@Max`: Applies only to integral numbers (`Byte`, `Short`, `Int`, `Long`). The bound is inclusive, so `@Min(1) @Max(20)` accepts 1 and 20 and refuses 0 and 21. Null and other types are ignored (combine with `@NotNull` if nulls are prohibited).
    - `@RequireAtLeastOneValid`: Class-level annotation. Fails if no non-null member property is free of validation errors.
 
 4. **Reflection Safety & Error Handling**:
