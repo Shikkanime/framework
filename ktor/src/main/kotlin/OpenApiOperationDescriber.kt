@@ -2,6 +2,7 @@ package fr.shikkanime.ktor
 
 import io.ktor.http.*
 import io.ktor.openapi.Operation as OpenApiOperation
+import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.*
@@ -31,6 +32,20 @@ internal fun OpenApiOperation.Builder.describeOperation(kFunction: KFunction<*>)
                     query(queryParam.name) {
                         required = queryParam.required
                         schema = buildSchema(kParameter.type.withNullability(!queryParam.required))
+                    }
+                }
+
+                kParameter.hasAnnotation<ModelAttribute>() -> {
+                    val modelClass = kParameter.type.classifier as? KClass<*>
+
+                    modelClass?.primaryConstructor?.parameters?.forEach { property ->
+                        val name = property.name ?: return@forEach
+                        val required = !property.isOptional && !property.type.isMarkedNullable
+
+                        query(name) {
+                            this.required = required
+                            schema = buildSchema(property.type.withNullability(!required))
+                        }
                     }
                 }
 

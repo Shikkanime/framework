@@ -110,6 +110,19 @@ annotation class QueryParam(
 )
 
 /**
+ * Binds a controller parameter from the query parameters of the request.
+ *
+ * The parameter type must declare a primary constructor whose parameters are named after the query
+ * parameters: `@ModelAttribute query: PageQueryDto` reads `page` and `size` and calls
+ * `PageQueryDto(page, size)`. A constructor parameter with a default value is optional, a nullable
+ * one resolves to `null`, and a required one is refused with HTTP 400 when absent or unconvertible.
+ * The OpenAPI description documents each constructor parameter as a query parameter, so one change
+ * to the DTO updates the contract of every endpoint that takes it.
+ */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class ModelAttribute
+
+/**
  * Resolves a controller parameter from a named Ktor route segment.
  *
  * The mapping path must declare the corresponding segment, for example `"/{id}"` for

@@ -21,7 +21,8 @@ The `ktor` module provides web framework integration for Ktor (server **and clie
    - Controller methods mapped with `@GetMapping`, `@PostMapping`, or `@PatchMapping` must define clean route contracts.
 
 4. **Argument Resolution & Validation**:
-   - Parameters resolved via `@QueryParam`, `@PathParam`, or `@RequestBody` must perform safe type conversions (supporting String, Int, Long, Double, Boolean, Enums, Uuid).
+   - Parameters resolved via `@QueryParam`, `@PathParam`, `@ModelAttribute`, or `@RequestBody` must perform safe type conversions (supporting String, Int, Long, Double, Boolean, Enums, Uuid).
+   - A request object shared by several endpoints is a `@ModelAttribute` DTO: its primary constructor properties are read from the query string by name, honour their default values, and are documented one by one in the OpenAPI description. A new pagination parameter is added to the DTO, never to every endpoint.
    - When a parameter is annotated with `@Valid`, `ControllerBinder` must execute `Validator.validate(value)` and translate any `ObjectNotValidException` into an HTTP 400 response with an `ErrorMessageDto`.
 
 5. **Standard Responses & OpenAPI Metadata**:
