@@ -1,6 +1,8 @@
 package fr.shikkanime.ktor
 
 import fr.shikkanime.validator.NotBlank
+import fr.shikkanime.validator.Max
+import fr.shikkanime.validator.Min
 import fr.shikkanime.validator.exceptions.ObjectNotValidException
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
@@ -98,6 +100,20 @@ class ControllerRegistrationTest {
             ResponseEntity.ok(book)
     }
 
+
+    data class PagedQuery(
+        @Min(1, "Page starts at 1") val page: Int = 1,
+        @Max(20, "Size ends at 20") val size: Int = 20
+    )
+
+    @RestController("/api/paged")
+    class PagedController : IController {
+
+        @Operation(summary = "List with a validated model attribute")
+        @GetMapping
+        fun list(@Valid @ModelAttribute query: PagedQuery): ResponseEntity<String> =
+            ResponseEntity.ok("${query.page}/${query.size}")
+    }
 
     /** Not annotated with [RestController]: must not be registered. */
     class PlainController {
@@ -404,6 +420,35 @@ class ControllerRegistrationTest {
                 // Then
                 assertTrue(response.contentTypeValue()!!.startsWith("application/cbor"))
                 assertTrue(response.bodyAsBytes().isNotEmpty())
+            }
+    }
+
+    @Nested
+    @DisplayName("tests for validated model attributes")
+    inner class ModelAttributeValidationTests {
+
+        @Test
+        fun `should accept a model attribute within its bounds`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(PagedController()))
+                val response = client.get("/api/paged?page=2&size=20")
+
+                // Then
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("2/20", response.bodyAsText())
+            }
+
+        @Test
+        fun `should return HTTP 400 when a model attribute breaks a range`() =
+            testApplication {
+                // Given / When
+                registerControllers(listOf(PagedController()))
+                val response = client.get("/api/paged?page=0&size=20")
+
+                // Then
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertTrue(response.bodyAsText().contains("Page starts at 1"))
             }
     }
 }

@@ -7,6 +7,7 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.jvmErasure
 import kotlin.uuid.Uuid
 
@@ -68,6 +69,44 @@ internal object ControllerArgumentResolver {
         }
 
     /**
+     * Builds a value object from the query parameters of the request.
+     *
+     * Each parameter of the primary constructor is read from the query string by name: an absent
+     * value keeps the constructor default when the parameter declares one, resolves to `null` when
+     * the parameter is nullable, and is refused when it is required.
+     *
+     * @param call current Ktor application call.
+     * @param kParameter controller function parameter carrying [ModelAttribute].
+     * @return the value object built from the query parameters.
+     * @throws InvalidParameterException when the type has no primary constructor, or when a required
+     * property is absent or cannot be converted.
+     */
+    private fun resolveModelAttribute(call: ApplicationCall, kParameter: KParameter): Any {
+        val kClass = kParameter.type.classifier as? KClass<*>
+            ?: throw InvalidParameterException(
+                "Parameter '${kParameter.name}' must be a class annotated with @ModelAttribute"
+            )
+        val constructor = kClass.primaryConstructor
+            ?: throw InvalidParameterException(
+                "Class ${kClass.simpleName} must declare a primary constructor"
+            )
+
+        val arguments = constructor.parameters.mapNotNull { property ->
+            val name = property.name ?: return@mapNotNull null
+            val stringValue = call.request.queryParameters[name]
+
+            when {
+                stringValue != null -> property to parseParameter(property, name, stringValue)
+                property.type.isMarkedNullable -> property to null
+                property.isOptional -> null
+                else -> throw InvalidParameterException("Parameter '$name' is required")
+            }
+        }.toMap()
+
+        return constructor.callBy(arguments)
+    }
+
+    /**
      * Builds the argument map used to invoke [function] through Kotlin reflection.
      *
      * Query and path values are read from [call], request bodies are deserialized by Ktor, and the
@@ -103,6 +142,10 @@ internal object ControllerArgumentResolver {
                 } else if (!queryParamAnnotation.required && kParameter.type.isMarkedNullable) {
                     args[kParameter] = null
                 }
+            }
+
+            if (kParameter.hasAnnotation<ModelAttribute>()) {
+                args[kParameter] = resolveModelAttribute(call, kParameter)
             }
 
             if (kParameter.hasAnnotation<PathParam>()) {

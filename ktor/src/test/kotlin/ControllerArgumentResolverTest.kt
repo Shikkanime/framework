@@ -43,7 +43,21 @@ class ControllerArgumentResolverTest {
             @HttpHeader("If-Modified-Since", required = false) lastModified: String?
         ): ResponseEntity<String> =
             ResponseEntity.ok("$ifNoneMatch / ${lastModified ?: "none"}")
+
+        fun modelAttributeEndpoint(
+            @ModelAttribute query: PageQuery
+        ): ResponseEntity<String> =
+            ResponseEntity.ok("${query.page}/${query.size}")
+
+        fun requiredModelAttributeEndpoint(
+            @ModelAttribute query: TermQuery
+        ): ResponseEntity<String> =
+            ResponseEntity.ok(query.term)
     }
+
+    data class PageQuery(val page: Int = 1, val size: Int = 20)
+
+    data class TermQuery(val term: String)
 
     @Nested
     @DisplayName("tests for parameter resolution and type conversion")
@@ -186,6 +200,84 @@ class ControllerArgumentResolverTest {
                     ControllerArgumentResolver.resolve(
                         call,
                         SampleController::headerEndpoint,
+                        SampleController()
+                    )
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("tests for the 'ModelAttribute' binding")
+    inner class ModelAttributeTests {
+
+        @Test
+        suspend fun `should read every property from the query parameters`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["page"] } returns "3"
+            every { call.request.queryParameters["size"] } returns "50"
+
+            // When
+            val args = ControllerArgumentResolver.resolve(
+                call,
+                SampleController::modelAttributeEndpoint,
+                SampleController()
+            )
+
+            // Then
+            assertTrue(args.values.contains(PageQuery(page = 3, size = 50)))
+        }
+
+        @Test
+        suspend fun `should keep the constructor defaults when a property is absent`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["page"] } returns null
+            every { call.request.queryParameters["size"] } returns null
+
+            // When
+            val args = ControllerArgumentResolver.resolve(
+                call,
+                SampleController::modelAttributeEndpoint,
+                SampleController()
+            )
+
+            // Then
+            assertTrue(args.values.contains(PageQuery()))
+        }
+
+        @Test
+        suspend fun `should refuse the request when a required property is absent`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["term"] } returns null
+
+            // When / Then
+            assertThrows<InvalidParameterException> {
+                runBlocking {
+                    ControllerArgumentResolver.resolve(
+                        call,
+                        SampleController::requiredModelAttributeEndpoint,
+                        SampleController()
+                    )
+                }
+            }
+        }
+
+        @Test
+        suspend fun `should refuse the request when a required property is not convertible`() {
+            // Given
+            val call = mockk<ApplicationCall>(relaxed = true)
+            every { call.request.queryParameters["page"] } returns "not-a-number"
+            every { call.request.queryParameters["size"] } returns null
+
+            // When / Then
+            assertThrows<InvalidParameterException> {
+                runBlocking {
+                    ControllerArgumentResolver.resolve(
+                        call,
+                        SampleController::modelAttributeEndpoint,
                         SampleController()
                     )
                 }
